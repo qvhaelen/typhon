@@ -1,0 +1,2750 @@
+#    Copyright (C) 2018 Quentin Vanhaelen
+
+
+#######################################################################################################
+#
+#    A CODE  TO  GENERATE THE FULL  SET OF INPUT FILES FOR PERFORMING dSSA AND SSA COMPUTATION
+#                           OF AN EXTENDED GENES REGULATORY NETWORK
+#
+######################################################################################################
+
+# Names of the main directories
+denomination_projet<-paste("STOCHASTIC-SIMULATOR",sep="")
+dossier_projet<-paste("CODE-TYPHON-2",sep="")
+
+# Directory with all source files for the typhon code: ("C:\\Users\\Quentin\\Documents\\MY FUTURE PROJECT\\CODE-ARXIV\\" MUST BE ADAPTED TO  YOUR OWN SYSTEM)
+fichier_output_f90_projet<-paste("C:\\Users\\Quentin\\Documents\\MY-FUTURE-PROJECT\\CODE-ARXIV\\",denomination_projet,"\\",dossier_projet,"\\SRC",sep="")
+
+# Directory containing the files of the kinetic model:("C:\\Users\\Quentin\\Documents\\MY FUTURE PROJECT\\CODE-ARXIV\\" MUST BE ADAPTED TO  YOUR OWN SYSTEM)
+Name_file_initial_data<-paste("C:\\Users\\Quentin\\Documents\\MY-FUTURE-PROJECT\\CODE-ARXIV\\",denomination_projet,"\\MODEL-FILES" ,sep="")
+
+# directory for the results of the simulation:
+dossier_sortie_path<-paste("../",dossier_projet,sep="")
+
+# This parameter is set to  TRUE if molecules need to  be added at some time during the simulation itself.
+mol_added_yes<-TRUE
+######################################################################################################
+# NOTE:
+######################################################################################################
+# When running, the program will  switch  to  the correct working directory as necessary
+# When  the directories have been created  and that each  input file  has been  properly formated 
+# and is in the correct  directory,  just select the complete source code and copy paste it
+# in the R browser, the process will start automatically. 
+######################################################################################################
+# Here is the list  and the full name (including the extension, .csv in this version) 
+# of the four input files  which  are used as initial  data to  perform
+# the full  process described above. These files will  be automatically loaded during
+#  the processing when needed. Other additional Files (initial conditions, etc.) are loaded later 
+######################################################################################################
+# 1) the file containing all the reactions, names of the species as well  as the other information 
+#    as described. (ncol = 18)
+input_chemical_equations<-paste("reactions_max.csv",sep="")
+
+# 2) this file must have ncol=number of reactions and ncol = to  be specified, each  column  
+#    contains the list of repressors which  can  act on the corresponding trasncription equation
+#    The first line of each  column  contains the number of repressors in that column
+list_of_repressors_genes<-paste("repressor_list_reaction.csv",sep="")
+
+# 3) this file has only one column  and a number of row equal to  the number of species
+#    the order of the species must correspond to  the order in the input_chemical_equations file
+#    A positive and integer number corresponding to  the initial  number of molecules 
+#    must be written  for each species, can be zero  if the  necessary
+list_0f_initial_conditions<-paste("initial_number_molecules.csv",sep="")
+
+# 4) this file contains two  columns and a number of row equal to  the number of reactions
+#    column one:  string corresponding to  the name of the rate constant (same name as in the input_chemical_equations file)
+#    column rwo:  number corresponding to  the value of the rate constant  
+list_of_rate_constants<-paste("rate_constants.csv",sep="")
+
+# 5) this file contains the rate constants for the repressors,  the syntax is similar to  the file (2): each  column is a reaction  and
+#    each  first line corresponds to  the number of repressors  acting on each transcriptional  reaction. the value of each  line is the strengh of
+#    the repression,  it appears as a coeffiecient of the variable for the corresponding repressor.
+list_of_repressors_genes_rates<-paste("repressor_list_rate_constant.csv",sep="")
+ 
+############################################# 
+# maximum out degree for dependency graph 
+max_connection<-50
+#############################################
+
+setwd(Name_file_initial_data)
+reactions_input <- read.csv(input_chemical_equations,header=FALSE)
+
+# 'nbre_reactions' is the total number of reactions (forward+backward) in the network
+# 'nbre_species' is the number of chemical  species appearing in the chemical  equations
+
+nbre_reactions<- reactions_input[1,5]
+nbre_species<- reactions_input[2,5]
+nbre_active_species<-reactions_input[3,5]
+
+kinetic<-matrix(nrow = nbre_reactions, ncol =1)
+for (i in 1:nbre_reactions){kinetic[i,1]<-paste("kinetic_rate(",i,")",sep="")}
+reactions_input[,15]<-kinetic[,1]
+
+#####################################################################################################
+#  GENERATION FICHIER output_statistics.F90
+#####################################################################################################
+output_statistics_filef90<-matrix(nrow = 100, ncol=1)
+output_statistics_filef90[,]<-"NA?#"
+
+
+output_statistics_filef90[1,1]<-"subroutine output_statistics()"
+output_statistics_filef90[2,1]<-""
+output_statistics_filef90[3,1]<-""
+output_statistics_filef90[4,1]<-"use  statistics"
+output_statistics_filef90[5,1]<-"use  parameters"
+output_statistics_filef90[6,1]<-"implicit none"
+output_statistics_filef90[7,1]<-"character(len=70)  :: filename"
+output_statistics_filef90[8,1]<-"character(8) :: date"
+output_statistics_filef90[9,1]<-"character(10) :: time"
+output_statistics_filef90[10,1]<-"character(5) ::  zone"
+output_statistics_filef90[11,1]<-"integer, dimension(8) ::  value"
+output_statistics_filef90[12,1]<-"CALL date_and_time(date,time,zone,value)"
+k<-12
+k<-k+1
+output_statistics_filef90[k,1]<-paste("filename = '",dossier_sortie_path,"/RESULTS-SSA/SSA_statistics'  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("  open(1, file = filename, position = 'append')",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '***************  Date of the simulation completion*********************************'  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  Year = ', value(1)  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  Month = ', value(2)  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  Day of the month = ', value(3)  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  Time difference with UTC in minutes = ', value(4)  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  Hour of the day = ', value(5)  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  The minutes of the hour = ', value(6)  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  The seconds of the minute = ', value(7) ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '***************Statistics for SSA simulation **************************************'  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) 'Value of the scaling factor used = ', scaling  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  A number of',nruntotal,' run(s) of',ntotal,'reactions has been  done.'  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  Average physical duration of one run is t = ',int(SSA_physical_time_av), 'minutes'  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  Total  number of fired reactions is ',nruntotal* ntotal  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  The Total Elapsed CPU time for the complete set of runs is ', int(SSA_duration), 'seconds'  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*) '  Approximately',SSA_duration/60.,'minutes'  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*)'   Average speed of the SSA is ',  floor(nruntotal* ntotal/SSA_duration) , ' reactions/s'  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste("   write(1,*)'************************************************************************************'  ",sep="")
+k<-k+1
+output_statistics_filef90[k,1]<-paste(" close(1) ",sep="")
+k<-k+1
+k<-k+1
+output_statistics_filef90[k,1]<-"end subroutine output_statistics"
+
+for (i in 1:nrow(output_statistics_filef90)){
+if (as.character(output_statistics_filef90[i,1])==as.character("NA?#")){output_statistics_filef90[i,1]<-""}
+}
+setwd(fichier_output_f90_projet)
+write(output_statistics_filef90, file="output_statistics.f90")
+setwd(Name_file_initial_data)
+
+######################################################################################################
+# creation of the output file f90 for SSA
+######################################################################################################
+output_filef90<-matrix(nrow = 50, ncol=1)
+output_filef90[,]<-"NA?#"
+
+output_filef90[1,1]<-"subroutine output_data()"
+output_filef90[2,1]<-"use parameters"
+output_filef90[3,1]<-"use variables"
+output_filef90[4,1]<-"implicit none"
+output_filef90[5,1]<-""
+output_filef90[6,1]<-"character(len=70)  :: filename, filename2"
+output_filef90[7,1]<-"character(len=4)  :: rnum"
+output_filef90[8,1]<-"integer :: i ,j"
+output_filef90[9,1]<-"write (rnum,'(i4.4)') nrun "
+output_filef90[10,1]<-""
+
+output_filef90[11,1]<-paste(" filename = '",dossier_sortie_path,"/RESULTS-SSA/'//rnum//'-TEMPORAL-DYNAMICS'",sep="")
+output_filef90[12,1]<-paste(" filename2 = '",dossier_sortie_path,"/RESULTS-SSA/'//rnum//'-TEMPORAL-DYNAMICS-LOW-RESOLUTION'",sep="")
+output_filef90[13,1]<-" open(1,file=filename, position='append') "
+output_filef90[14,1]<-" open(2,file=filename2, position='append')  "
+output_filef90[15,1]<-"do  i =1,number_events_saved"
+output_filef90[16,1]<-paste(" write(1,1006) (  matrix_result_global(i,j), j=1,",nbre_species+1,")",sep="")
+output_filef90[17,1]<-paste("  if (mod(i,10).eq.0) then",sep="")
+output_filef90[18,1]<-paste("     write(2,1006) (  matrix_result_global(i,j),j=1,",nbre_species+1,")",sep="")
+output_filef90[19,1]<-paste("  end if",sep="")
+output_filef90[20,1]<-" end do"
+output_filef90[21,1]<-"close(1)"
+output_filef90[22,1]<-"close(2)"
+
+output_filef90[23,1]<-paste(" filename = '",dossier_sortie_path,"/RESULTS-SSA/'//rnum//'-M_nbre_transition'",sep="")
+output_filef90[24,1]<-" open(2,file=filename, position='append') "
+output_filef90[25,1]<-"do  i =1,M_react_channel"
+output_filef90[26,1]<-paste(" write(2,1007) (  matrix_nbre_transition_global(i,j), j=1,",nbre_reactions,")",sep="")
+output_filef90[27,1]<-" end do"
+
+output_filef90[28,1]<-"close(2)"
+
+
+output_filef90[29,1]<-paste(" filename = '",dossier_sortie_path,"/RESULTS-SSA/'//rnum//'-M_A_transition'",sep="")
+output_filef90[30,1]<-" open(2,file=filename, position='append') "
+output_filef90[31,1]<-"do  i =1,M_react_channel"
+output_filef90[32,1]<-paste(" write(2,1007) (  matrix_A_transition_global(i,j), j=1,",nbre_reactions,")",sep="")
+output_filef90[33,1]<-" end do"
+output_filef90[34,1]<-"close(2)"
+
+
+output_filef90[36,1]<-paste(" filename = '",dossier_sortie_path,"/RESULTS-SSA/'//rnum//'-M_Adt_transition'",sep="")
+output_filef90[37,1]<-" open(2,file=filename, position='append') "
+output_filef90[38,1]<-"do  i =1,M_react_channel"
+output_filef90[39,1]<-paste(" write(2,1007) (  matrix_Adt_transition_global(i,j), j=1,",nbre_reactions,")",sep="")
+output_filef90[40,1]<-" end do"
+output_filef90[41,1]<-"close(2)"
+output_filef90[42,1]<-paste("1006  format(",nbre_species+1,"(2x, e14.8))",sep="")
+output_filef90[43,1]<-paste("1007  format(",nbre_reactions,"(2x, e14.8))",sep="")
+output_filef90[44,1]<-"end subroutine output_data"
+
+
+ for (i in 1:nrow(output_filef90))
+ {
+      if (as.character(output_filef90[i,1])==as.character("NA?#")){output_filef90[i,1]<-""}
+ }
+
+setwd(fichier_output_f90_projet)
+write(output_filef90, file="SSA_output_data.f90")
+setwd(Name_file_initial_data)
+
+#########################################################################################################
+# compute the depth of the tree and the number of nodes in it.
+########################################################################################################
+# h is the depth of the tree and n is the corresponding numbert of nodes for the level  h of the tree
+# n_total is the total  number of nodes in the tree
+
+n<-1
+h<-0
+while(n+n/2<nbre_reactions)
+       {
+        n<- 2*n
+        h<-h+1
+       }
+n_total<-  2**(h+1)-1
+h_max<-h
+
+#########################################################################################################
+# fill  in  the binary tree (node zero  has the  index: 2*initialization_nodes[1,1])
+#########################################################################################################
+
+nodes_number<-matrix(nrow = n_total-1,  ncol = 1)
+initialization_nodes<-matrix(nrow = h,  ncol = 1)
+
+initialization_nodes[h,1]<-1
+initialization_nodes[h-1,1]<-2
+initialization_nodes[h-2,1]<-3
+x<- h-3
+for (n in x:1){initialization_nodes[n,1]<- 2*initialization_nodes[n+1,1]}
+
+j<-1
+k<-0
+d<- h-1
+for (i in 1:d)
+{
+ j <- 2*j
+ k<-k+1
+ nodes_number[k,1]<- initialization_nodes[i,1]
+ for (m in 2:j)
+ {
+  if (i == 1)
+  {
+    k<-k+1
+    nodes_number[k,1]<- initialization_nodes[i,1] +2*initialization_nodes[1,1]
+  } 
+  if (i != h)
+  {
+    if (i != 1)
+    {
+      k<-k+1
+      nodes_number[k,1]<-nodes_number[k-1,1] + initialization_nodes[i-1,1]
+    }
+  }
+ }
+}
+
+y<-  2**h-1
+ybis<-  n_total-1
+nodes_number[y,1]<- initialization_nodes[h,1]
+y<-y+1
+
+for (f in y:ybis )
+{
+   if (floor(f/2)==f/2){nodes_number[f,1]<-nodes_number[f-1,1]+initialization_nodes[h-1,1]}
+   if (floor(f/2)!=f/2){nodes_number[f,1]<-nodes_number[f-1,1]+1}
+}
+
+
+for (i in 1:nrow(nodes_number)){if (nodes_number[i,1]>nbre_reactions){nodes_number[i,1]<-nbre_reactions}}
+
+#########################################################################################################
+#  Generation of the binary tree array for the fortran input
+#########################################################################################################
+binary_tree<-matrix(nrow = n_total+h-1,  ncol = 1)
+j<-1
+k<-0
+l<-0
+for (i in 1:h)
+{
+  l<-l+1
+  binary_tree[l,1]<-paste("!level", i, "of the binary tree")
+  j <- 2*j
+  for (m in 1:j)
+  {
+   l<-l+1
+   k<-k+1
+   binary_tree[l,1]<-paste("          binary_tree(",k,")=",nodes_number[k,1], sep="")
+  }
+}
+
+
+
+#####################################################################################################
+#                                          NETWORK  BUILDER                                         # 
+#                                                 FOR                                               #
+#                                           Gene regulatory network                                 #
+#     Dependancy graphs,  stochiometric matrix,  input files for species,  Initial  conditions,     #
+#     rate constants,  list of h_nu functions                                                       #
+#####################################################################################################
+
+
+###########################################################################################################
+# we write for each reaction, the corresponding set of chemical species involved (reactants only, for h function)
+###########################################################################################################
+
+species_involved<- matrix(nrow = nbre_reactions,  ncol=3)
+species_involved[,]<- 0
+
+h_function<- matrix(nrow = nbre_reactions,  ncol=2)
+h_function[,]<- 0
+
+for (i in 1:nbre_reactions)
+{
+  k = 0
+  m = 0
+  for (j in 8:11)
+  {
+   if (is.na(reactions_input[i,j]) == FALSE)
+   {
+     if (reactions_input[i,j] != 0)
+     {
+        k = k+1
+        if (reactions_input[i,j] > 0) { species_involved[i,k]<- reactions_input[i,j]}
+        if (reactions_input[i,j] < 0) 
+        {
+          m = m+1
+          h_function[i,m]<- -reactions_input[i,j]
+          species_involved[i,k]<- -reactions_input[i,j]
+        }
+      }
+    }
+  }
+}
+
+#########################################################################################################
+# Counting number of different kinds of species appearing in each reaction
+#########################################################################################################
+
+nbre_variation<- 0
+variation<- matrix(nrow = 600,ncol = 1)
+
+for (i  in 1:nbre_reactions){
+j<-1
+ while (j <= 4)
+ {
+    if (is.na(reactions_input[i,j+7]) == FALSE)
+    {
+     if (reactions_input[i,j+7] != 0)
+       {
+         nbre_variation<-nbre_variation + 1
+         variation[nbre_variation] <- reactions_input[i,j+7]
+       }
+     j <- j +1
+     if (is.na(reactions_input[i,j+7]) == FALSE )
+     {
+        if(reactions_input[i,j+7] ==reactions_input[i,j-1+7])
+        {
+          j <- j +1
+        }
+     }
+    }
+    if (is.na(reactions_input[i,j+7]) == TRUE){ j<-j+1}
+ }
+}
+
+
+reactions_connected<- matrix(nrow = nbre_reactions,  ncol=max_connection)
+reactions_connected[,]<- 0
+
+
+ for (i in 1:nbre_reactions)
+ {
+   m = 0
+   for (j in 1:3)
+   {
+     if( species_involved[i,j] != 0)
+     {
+      for (k in 1:nbre_reactions)
+      {
+        for (l in 1:2)
+        {
+          if ( species_involved[i,j] ==  h_function[k,l])
+           { 
+             BOB<- TRUE
+             if (BOB)
+             {
+              m = m+1
+              reactions_connected[i,m]<- k
+             }                          
+           }
+         }
+       }
+    }
+  }
+}
+####################################################################################################
+# in what follows the reactions are sorted in function of the degree of the propensity function 
+####################################################################################################
+
+
+k <- 0
+m <- 0
+constante<-0
+for (i in 1:nbre_reactions)
+{
+  if (h_function[i,2] == 0 )
+  { 
+    if (h_function[i,1] != 0){k = k+1}
+    if (h_function[i,1] == 0){constante = constante +1}
+  }
+  if (h_function[i,2] != 0){ m = m+1}
+}
+
+
+h_function_mono<- matrix(nrow = k,  ncol=2)
+h_function_bi<- matrix(nrow = m,  ncol=3)
+h_function_constante<- matrix(nrow =  constante,  ncol=1)
+
+k <- 0
+m <- 0
+constante<-0
+
+for (i in 1:nbre_reactions)
+{
+  if (h_function[i,2] == 0 && h_function[i,1] != 0)
+  { 
+    k = k+1
+    h_function_mono[k,1]<-h_function[i,1]
+    h_function_mono[k,2]<-i
+  }
+  if (h_function[i,2] == 0 && h_function[i,1] == 0)
+  { 
+    constante = constante+1
+    h_function_constante[constante,1]<-i
+  }
+  if (h_function[i,2] != 0)
+  { 
+    m = m+1
+    h_function_bi[m,1]<-h_function[i,1]
+    h_function_bi[m,2]<-h_function[i,2]
+    h_function_bi[m,3]<-i
+  }
+}
+############################################
+# ordering lists in decreasing order 
+############################################
+# monomolecular reactions list
+############################################
+
+intermediaire<- matrix(nrow = 1,  ncol=2)
+i =1
+while (i <= nrow(h_function_mono))
+{
+ j =i 
+ while(j < nrow(h_function_mono))
+ {
+  j = j+1
+  if (h_function_mono[i,1]<h_function_mono[j,1])
+  {
+   intermediaire[1,1]<-h_function_mono[i,1]
+   intermediaire[1,2]<-h_function_mono[i,2]
+   
+   h_function_mono[i,1]<- h_function_mono[j,1]
+   h_function_mono[i,2]<- h_function_mono[j,2]
+
+   h_function_mono[j,1]<- intermediaire[1,1] 
+   h_function_mono[j,2]<- intermediaire[1,2]
+    if (j == nrow(h_function_mono))
+    {
+     i = i+1
+     j = i
+    }
+   } 
+  }
+ i = i+1
+}
+
+
+
+# bimolecular reaction
+###########################
+
+
+
+
+intermediaire2<- matrix(nrow = 1,  ncol=3)
+i =1
+
+while (i <= nrow(h_function_bi))
+{
+ j =i 
+ while(j < nrow(h_function_bi))
+ {
+ j = j+1
+ if (h_function_bi[i,1]<h_function_bi[j,1])
+ {
+
+  intermediaire2[1,1]<-h_function_bi[i,1]
+  intermediaire2[1,2]<-h_function_bi[i,2]
+  intermediaire2[1,3]<-h_function_bi[i,3]
+
+  h_function_bi[i,1]<- h_function_bi[j,1]
+  h_function_bi[i,2]<- h_function_bi[j,2]
+  h_function_bi[i,3]<- h_function_bi[j,3]
+
+  h_function_bi[j,1]<- intermediaire2[1,1] 
+  h_function_bi[j,2]<- intermediaire2[1,2]
+  h_function_bi[j,3]<- intermediaire2[1,3]
+
+  if (j == nrow(h_function_bi))
+  {
+    i = i+1
+    j = i
+  }
+ } 
+}
+i = i+1
+}
+
+####################################################################################################
+#  reordering reactions
+####################################################################################################
+
+reactions_input2<- matrix(nrow = nbre_reactions, ncol = 17)
+if (nrow( h_function_constante)>0)
+{
+ for (i in 1:nrow( h_function_constante))
+ {
+ reactions_input2[i,17]<-reactions_input[h_function_constante[i,1],17] 
+ reactions_input2[i,14]<-reactions_input[h_function_constante[i,1],14] 
+ reactions_input2[i,16]<-reactions_input[h_function_constante[i,1],16] 
+ reactions_input2[i,15]<-as.character(reactions_input[h_function_constante[i,1],15]) 
+ for (k in 8:11){reactions_input2[i,k]<-reactions_input[h_function_constante[i,1],k]   }
+ }
+}
+
+first_step<-nrow( h_function_constante)+1
+second_step<-nrow( h_function_constante)+nrow( h_function_mono)
+if (nrow( h_function_mono)>0)
+{
+ for (i in first_step:second_step)
+ {
+  reactions_input2[i,17]<- reactions_input[h_function_mono[i-nrow( h_function_constante),2],17]
+  reactions_input2[i,14]<- reactions_input[h_function_mono[i-nrow( h_function_constante),2],14]
+  reactions_input2[i,16]<- reactions_input[h_function_mono[i-nrow( h_function_constante),2],16]
+  reactions_input2[i,15]<- as.character(reactions_input[h_function_mono[i-nrow( h_function_constante),2],15])
+  for (k in 8:11){reactions_input2[i,k]<-reactions_input[h_function_mono[i-nrow( h_function_constante),2],k]   }
+ }
+}
+
+third_step<-second_step+1
+if (nrow( h_function_bi)>0)
+{
+  for (i in third_step:nbre_reactions)
+  {
+  reactions_input2[i,17]<- reactions_input[h_function_bi[i-second_step,3],17]
+  reactions_input2[i,14]<- reactions_input[h_function_bi[i-second_step,3],14]
+  reactions_input2[i,16]<- reactions_input[h_function_bi[i-second_step,3],16]
+  reactions_input2[i,15]<- as.character(reactions_input[h_function_bi[i-second_step,3],15])
+  for (k in 8:11){reactions_input2[i,k]<-reactions_input[h_function_bi[i-second_step,3],k]   }
+  }
+}
+
+
+write.csv( reactions_input2, file=" reaction_input2_new_order.csv")
+reactions_input2<- matrix(nrow = nbre_reactions, ncol = 17)
+reactions_input_inter<- matrix(nrow = nbre_reactions, ncol = 18)
+#################################################################################################
+###################################################################################################
+
+###################################################################################################
+###################################################################################################
+reactions_input2<-read.csv(" reaction_input2_new_order.csv", header = TRUE)
+reactions_input_inter<-read.csv(" reaction_input2_new_order.csv", header = TRUE)
+reactions_input2[,]<-reactions_input_inter[,2:18]
+####################################################################################################
+if (mol_added_yes){
+
+molecules_added<-read.csv("molecules addition.csv",header = FALSE)
+
+addition_mol_running<-matrix(nrow = 10*nrow(molecules_added), ncol = 1)
+addition_mol_running[,]<-"NA?#"
+
+k<-0
+for (i in 1:nrow(molecules_added))
+{
+
+             k<-k+1
+             addition_mol_running[k,1]<-paste("if  (t >= ",molecules_added[i,3],") then",sep="")
+             k<-k+1
+             addition_mol_running[k,1]<-paste("   Y(",molecules_added[i,1],") =",molecules_added[i,2] ,sep="")
+   j<-0
+   found_mol<-FALSE
+   while ( found_mol ==FALSE && j<nbre_reactions )
+   {
+      j<-j+1
+      for (l in 8:9)
+      {
+         if (is.na(reactions_input2[j,l]) == FALSE )
+         {
+              if (abs(reactions_input2[j,l]) == molecules_added[i,1]){found_mol<-TRUE} 
+         }
+      }
+     
+      if (found_mol)
+      {
+            # k<-k+1
+            # addition_mol_running[k,1]<-paste("if  (t >= ",molecules_added[i,3],") then",sep="")
+            # k<-k+1
+            # addition_mol_running[k,1]<-paste("   Y(",molecules_added[i,1],") =",molecules_added[i,2] ,sep="")
+             k<-k+1
+             addition_mol_running[k,1]<-paste("       if (mol_added(",i,")) then",sep="")
+             k<-k+1
+             if (is.na(reactions_input2[j,9]) == FALSE){addition_mol_running[k,1]<-paste("      a_nu(",j,") =  c_nu(",j,")*Y(",abs(reactions_input2[j,8]),")*Y(",abs(reactions_input2[j,9]),")",sep="")}
+             if (is.na(reactions_input2[j,9]) == TRUE){ addition_mol_running[k,1]<-paste("       a_nu(",j,") =  c_nu(",j,")*Y(",abs(reactions_input2[j,8]),")",sep="")}
+             k<-k+1
+             addition_mol_running[k,1]<-paste("          do j=",j,",M_react_channel ",sep="")
+             k<-k+1
+             addition_mol_running[k,1]<-paste("           p_sum(j) = a_nu(j)+p_sum(j-1)",sep="")
+             k<-k+1
+             addition_mol_running[k,1]<-paste("          end do",sep="")
+             k<-k+1
+             addition_mol_running[k,1]<-paste("          mol_added(",i,") = .FALSE.",sep="")
+             k<-k+1
+             addition_mol_running[k,1]<-paste("        end if",sep="")
+           #  k<-k+1
+           #  addition_mol_running[k,1]<-paste("end if",sep="") 
+      } # end if (found_mol)
+   } # end while ( found_mol ==FALSE && j<nbre_reactions )
+  k<-k+1
+  addition_mol_running[k,1]<-paste("end if",sep="") 
+} # end for (i in 1:nrow(molecules_added))
+
+
+for (i in 1:nrow(addition_mol_running)){
+if (as.character(addition_mol_running[i,1])==as.character("NA?#")){addition_mol_running[i,1]<-""}
+}
+
+} #end mol_added_yes
+####################################################################################################
+
+species_involved2<- matrix(nrow = nbre_reactions,  ncol=3)
+species_involved2[,]<- 0
+repressor2<-read.csv(list_of_repressors_genes, header = FALSE)
+repressor<- matrix(nrow = nrow( repressor2),  ncol = nbre_reactions)
+repressor[,]<- 0 
+
+for (i in 1:nrow( repressor2))
+{
+  for (j in 1:ncol(repressor2))
+  {
+    if (is.na( repressor2[i,j])==FALSE){repressor[i,j]<-repressor2[i,j]}
+  }
+}
+
+h_function2<- matrix(nrow = nbre_reactions,  ncol=2)
+h_function2[,]<- 0
+
+for (i in 1:nbre_reactions)
+{
+  k = 0
+  m = 0
+  for (j in 8:11)
+  {
+   if (is.na(reactions_input2[i,j]) == FALSE)
+   {
+    if (reactions_input2[i,j] != 0)
+    {
+     k = k+1
+     if (reactions_input2[i,j] > 0) { species_involved2[i,k]<- reactions_input2[i,j]}
+     if (reactions_input2[i,j] < 0) 
+     {
+       m = m+1
+       h_function2[i,m]<- -reactions_input2[i,j]
+       species_involved2[i,k]<- -reactions_input2[i,j]
+     }
+    }
+  }
+ }
+}
+
+reactions_connected2<- matrix(nrow = nbre_reactions,  ncol=max_connection)
+reactions_connected2[,]<- 0
+
+
+for (i in 1:nbre_reactions)
+{
+ m = 0
+ for (j in 1:3)
+ {
+   if( species_involved2[i,j] != 0)
+   {
+      for (k in 1:nbre_reactions)
+      {
+          for (l in 1:2)
+          {
+           if ( species_involved2[i,j] ==  h_function2[k,l])
+           {
+            BOB<- TRUE
+             if (BOB)
+             {
+              m = m+1
+              reactions_connected2[i,m]<- k
+             }
+           }
+          } # fin boucle sur l
+       if (is.na(repressor[1,reactions_input2[k,17]]) ==FALSE)
+       {
+        if (repressor[1,reactions_input2[k,17]] != 0)
+        {
+        number_rep <- repressor[1,reactions_input2[k,17]]+1
+        for (l in 2:number_rep)
+        {
+         if ( species_involved2[i,j] ==  repressor[l,reactions_input2[k,17]])
+         {
+          m = m+1
+          reactions_connected2[i,m]<- k
+         } # fin boucle sur repressor
+        } # fin boucle sur l repressor
+        } #fin boucle if repressor  !=0
+        } # fin boucle is.na repressor
+     }
+   }
+  }
+}
+
+#######################################################################################
+# tri des differentes listes de dependance
+# suppression des doublons
+#######################################################################################
+
+kill_doublons2 <- array(0,dim=c(nbre_reactions,ncol( reactions_connected2),ncol( reactions_connected2)+1))
+kill_doublons2[,,1] <-reactions_connected2[,]
+
+for (i in 1:nbre_reactions)
+{
+  l<-0
+  m<-0
+  for (k in 1:ncol( reactions_connected2))
+  {
+   l<-l+1
+   m<-m+1 
+   for (hj in 1:m){kill_doublons2[i,hj,k+1] <-kill_doublons2[i,hj,k]}
+   j<-m
+   mh<-0
+   while (j<=ncol( reactions_connected2))
+   {
+    if (kill_doublons2[i,m,k+1] !=kill_doublons2[i,j,k] )
+    { 
+     mh<-mh+1 
+     kill_doublons2[i,m+mh,k+1] <-kill_doublons2[i,j,k]
+    }
+    j<-j+1
+   }
+ }
+}
+reactions_connected2[,]<-0
+reactions_connected2[,]<-kill_doublons2[,,ncol( reactions_connected2)+1] 
+
+#######################################################################################
+# This is the subroutine for computing the "min_x" value for each  equations.  min_x is equal to  the lowest 
+# label  off all the outdegree equations
+#######################################################################################
+
+x_value<- matrix(nrow =nbre_reactions,ncol = 1 )
+
+
+for (i in 1:nbre_reactions )
+{
+  init_value<- reactions_connected2[i,1]
+  for (j in 2:ncol( reactions_connected2))
+  {
+   if ((reactions_connected2[i,j]!= 0) && (reactions_connected2[i,j]< init_value) ){ init_value<-reactions_connected2[i,j]}
+  }
+  x_value[i,1]<- init_value
+  if (init_value == 0){x_value[i,1]<- 2}
+}
+
+#######################################################################################
+# on ecrit les fichiers pour h_nu() et upgrade_matrix()
+#######################################################################################
+repressor_rate_constants<-read.csv(list_of_repressors_genes_rates, header =FALSE)
+# h_nu
+# a_nu
+
+h_nu <- matrix(nrow = nbre_reactions, ncol = 1)
+a_nu <- matrix(nrow = nbre_reactions, ncol = 1)
+
+
+if (nrow( h_function_constante)>0)
+{
+  for (i in 1: nrow( h_function_constante))
+  {
+  if (repressor[1,reactions_input2[i,17]] == 0)
+  {
+   a_nu[i]<-paste("a_nu(", i,")=c_nu(",i,")*1.0")
+   h_nu[i]<-paste("h_nu(", i,")=1.0")
+  }
+  if (repressor[1,reactions_input2[i,17]] != 0)
+  {
+    global_rep<-matrix(nrow = 1, ncol = 1)
+    global_rep<-"1.0"
+    rep<-repressor[1,reactions_input2[i,17]]+1
+    for (repression in 2:rep)
+    {
+      rep_vector<-paste("+",repressor_rate_constants[repression,reactions_input2[i,17]],"*Y(",repressor[repression,reactions_input2[i,17]],")",sep="")
+      global_rep<-paste(global_rep,rep_vector,sep="")
+    }
+    a_nu[i]<-paste("a_nu(", i,")=c_nu(",i,")*(1.0/(",global_rep,"))",sep = "")
+    h_nu[i]<-paste("h_nu(", i,")=1.0/(",global_rep,")",sep = "")
+  }
+ }
+}
+
+second_step<-nrow( h_function_constante)+1
+third_step<-nrow( h_function_mono)+nrow( h_function_constante)
+if (nrow( h_function_mono)>0)
+{
+  for (i in second_step:third_step)
+  {
+   if (repressor[1,reactions_input2[i,17]] == 0)
+   {
+    a_nu[i]<-paste("a_nu(", i,")=c_nu(",i,")*","Y(",h_function2[i,1],")",sep = "")
+    h_nu[i]<-paste("h_nu(", i,")=","Y(",h_function2[i,1],")",sep = "")
+   }
+   if (repressor[1,reactions_input2[i,17]] != 0)
+   {
+    global_rep<-matrix(nrow = 1, ncol = 1)
+    global_rep<-"1.0"
+    rep<-repressor[1,reactions_input2[i,17]]+1
+    for (repression in 2:rep)
+    {
+     rep_vector<-paste("+",repressor_rate_constants[repression,reactions_input2[i,17]],"*Y(",repressor[repression,reactions_input2[i,17]],")",sep="")
+     global_rep<-paste(global_rep,rep_vector,sep="")
+    }
+    a_nu[i]<-paste("a_nu(", i,")=c_nu(",i,")*(1.0/(",global_rep,"))*Y(",h_function2[i,1],")",sep = "")
+    h_nu[i]<-paste("h_nu(", i,")=(1.0/(",global_rep,"))*Y(",h_function2[i,1],")",sep = "")
+   }
+  }
+ }
+
+
+fourth_step<-third_step+1
+if (nrow( h_function_bi)>0)
+{
+  for (i in fourth_step:nbre_reactions)
+  {
+    if (h_function2[i,1]!= h_function2[i,2])
+    {
+     if (repressor[1,reactions_input2[i,17]] == 0)
+     {
+      a_nu[i]<-paste("a_nu(", i,")=c_nu(",i,")*","Y(",h_function2[i,1],")*Y(",h_function2[i,2],")" ,sep = "")
+      h_nu[i]<-paste("h_nu(", i,")=","Y(",h_function2[i,1],")*Y(",h_function2[i,2],")" ,sep = "")
+     }
+     if (repressor[1,reactions_input2[i,17]] != 0)
+     {
+      global_rep<-matrix(nrow = 1, ncol = 1)
+      global_rep<-"1.0"
+      rep<-repressor[1,reactions_input2[i,17]]+1
+      for (repression in 2:rep)
+      {
+       rep_vector<-paste("(+",repressor_rate_constants[repression,reactions_input2[i,17]],"*Y(",repressor[repression,reactions_input2[i,17]],")",sep="")
+       global_rep<-paste(global_rep,rep_vector,sep="")
+      }
+      a_nu[i]<-paste("a_nu(", i,")=c_nu(",i,")*(1.0/(",global_rep,"))*Y(",h_function2[i,1],")*Y(",h_function2[i,2],")" ,sep = "")
+      h_nu[i]<-paste("h_nu(", i,")=(1.0/(",global_rep,"))*Y(",h_function2[i,1],")*Y(",h_function2[i,2],")" ,sep = "")
+    }
+  }
+
+  if (h_function2[i,1]== h_function2[i,2])
+  {
+    if (repressor[1,reactions_input2[i,17]] == 0)
+    {
+     a_nu[i]<-paste("a_nu(", i,")=c_nu(",i,")*","Y(",h_function2[i,1],")*(Y(",h_function2[i,2],")-1.0)/2." ,sep = "")
+     h_nu[i]<-paste("h_nu(", i,")=","Y(",h_function2[i,1],")*(Y(",h_function2[i,2],")-1.0)/2." ,sep = "")
+    }
+    if (repressor[1,reactions_input2[i,17]] != 0)
+    {
+     global_rep<-matrix(nrow = 1, ncol = 1)
+     global_rep<-"1.0"
+     rep<-repressor[1,reactions_input2[i,17]]+1
+     for (repression in 2:rep)
+     {
+       rep_vector<-paste("+",repressor_rate_constants[repression,reactions_input2[i,17]],"*Y(",repressor[repression,reactions_input2[i,17]],")",sep="")
+       global_rep<-paste(global_rep,rep_vector,sep="")
+     }
+       a_nu[i]<-paste("a_nu(", i,")=c_nu(",i,")*(1.0/(",global_rep,"))*Y(",h_function2[i,1],")*(Y(",h_function2[i,2],")-1.0)/2." ,sep = "")
+       h_nu[i]<-paste("h_nu(", i,")=(1.0/(",global_rep,"))*Y(",h_function2[i,1],")*(Y(",h_function2[i,2],")-1.0)/2." ,sep = "")
+    }
+  }
+ }# end fourth_step:nbre_reactions
+}
+
+#######################################################################################
+dependancy_graph<- matrix(nrow = 50000, ncol = 1)
+dependancy_graph[,]<-"NA?#"
+k<-0
+outdegree_equation<- matrix(nrow = 2**h+2**(h-1),  ncol = 1)
+outdegree_equation[,]<- 0
+
+for (i in 1:nbre_reactions)
+{
+  k<-k+1
+  outdegree_equation[i,1]<-1
+  dependancy_graph[k,1] <- paste("!Equation number=",i, sep = "")
+  for (j in 1:ncol(reactions_connected2))
+  {
+    if ( reactions_connected2[i,j] != 0)
+    {
+     k = k+1
+     outdegree_equation[i,1]<-outdegree_equation[i,1] +1
+     dependancy_graph[k,1] <- paste("             ",a_nu[ reactions_connected2[i,j]] ) 
+    }
+  }
+ k = k+1
+ outdegree_equation[i,1]<-outdegree_equation[i,1] +1
+ dependancy_graph[k,1] <- paste("             x_min=",x_value[i,1],sep="" )
+}
+
+for (i in 1:nrow(dependancy_graph))
+{
+  if (as.character(dependancy_graph[i,1])==as.character("NA?#")){dependancy_graph[i,1]<-""}
+}
+
+#######################################################################################
+# initial  condition for each  species at the beginning of the simulation
+#######################################################################################
+
+initialisation<- matrix(nrow = 2*nbre_species, ncol = 1)
+init_molecules <-matrix(nrow = nbre_species, ncol = 1)
+
+
+init_molecules <- read.csv(list_0f_initial_conditions,header=FALSE)
+k<- 0
+for (i in 1:nbre_species)
+{
+  k<- k+1
+  initialisation[k]<- paste("!species name: ", reactions_input[i,1], sep="")
+  k<- k+1
+  initialisation[k]<- paste("Y(",i,")=int(scaling*Y_concentration(",i,"))", sep="" )
+}
+
+
+#######################################################################################
+#   Writing of command mod file global for typhon.
+#######################################################################################
+commandf90<-matrix(nrow = 200 ,ncol = 1)
+commandf90[,]<-"NA?#"
+k<-1
+commandf90[k,1]<-paste("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",sep="")
+k<-k+1
+commandf90[k,1]<-paste("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! COMMOUN MODULES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",sep="")
+k<-k+1
+commandf90[k,1]<-paste("!  in this file, there are the main and most important parameters and variables used in this !!!!!!!",sep="")
+k<-k+1
+commandf90[k,1]<-paste("!                                            program",sep="")
+k<-k+1
+commandf90[k,1]<-paste("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",sep="")
+k<-k+1
+commandf90[k,1]<-paste("",sep="")
+k<-k+1
+commandf90[k,1]<-paste("MODULE variables",sep="")
+k<-k+1
+commandf90[k,1]<-paste("",sep="")
+k<-k+1
+commandf90[k,1]<-paste("",sep="")
+k<-k+1
+if (mol_added_yes){commandf90[k,1]<-paste("logical, dimension(",nrow(molecules_added),") :: mol_added ",sep="")}
+k<-k+1
+commandf90[k,1]<-paste("type binary_tree_structure",sep="")
+k<-k+1
+commandf90[k,1]<-paste("  integer :: childgauche",sep="")
+k<-k+1
+commandf90[k,1]<-paste("  integer :: childdroit",sep="")
+k<-k+1
+commandf90[k,1]<-paste("  integer ::  parents",sep="")
+k<-k+1
+commandf90[k,1]<-paste("  integer :: label",sep="")
+k<-k+1
+commandf90[k,1]<-paste("  real, pointer :: psum => NULL() ",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" end type binary_tree_structure",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" type (binary_tree_structure), allocatable, dimension(:)  :: tree_structure",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" type stochioupdate",sep="")
+k<-k+1
+commandf90[k,1]<-paste("   integer, pointer :: species => NULL()  ",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" end type stochioupdate",sep="")
+k<-k+1
+commandf90[k,1]<-paste("type (stochioupdate), allocatable, dimension(:,:)  :: number_species,number_species_product,number_species_tilde",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer,  allocatable, dimension(:) ::  stochio_number,stochio_number_product,stochio_number_tilde",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" real    :: t !  temporal  variable",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" real ::  sum",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" real, allocatable,  dimension(:)  :: d_mu ! absolute delay for each reaction",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" real,  allocatable, dimension(:) :: react_t_delay !  vector containing the varying delay for each reaction",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" integer, allocatable, dimension(:) :: mu_delayed ! vector for labels of the reaction having a delay",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" integer,  allocatable, dimension(:) ::  binary_tree",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer,  allocatable, dimension(:) ::  leftchild,  rightchild",sep="")
+k<-k+1
+commandf90[k,1]<-paste("!  assuming that N  chemical species could react through M reaction channels:",sep="")
+k<-k+1
+commandf90[k,1]<-paste("real, allocatable, dimension(:)    :: c_nu !  probability that the reaction nu occur",sep="")
+k<-k+1
+commandf90[k,1]<-paste("real, allocatable, dimension(:)    :: a_nu !  a_nu() = c_nu()*h_nu()",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" real, allocatable, dimension(:) ,target   ::  p_sum",sep="")
+k<-k+1
+commandf90[k,1]<-paste("real, allocatable, dimension(:)  :: h_nu !  stochiometric coefficient",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer, allocatable, dimension(:) ,target :: Y !  vector of the N chemical  species",sep="")
+k<-k+1
+commandf90[k,1]<-paste("real, allocatable, dimension(:,:) ::  matrix_result, matrix_result_global",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer, allocatable, dimension(:,:) :: matrix_nbre_transition",sep="")
+k<-k+1
+commandf90[k,1]<-paste("real, allocatable, dimension(:,:) :: matrix_A_transition, matrix_Adt_transition",sep="")
+k<-k+1
+commandf90[k,1]<-paste("real, allocatable, dimension(:,:) :: matrix_nbre_transition_global, matrix_A_transition_global, matrix_Adt_transition_global",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer,  allocatable, dimension(:,:) ::  update_matrix,  update_matrix_tilde, update_matrix_product  !  matrix for the update of the number of molecules",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer,  allocatable, dimension(:,:) ::  update,update_tilde, update_product",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" real    ::  a_0  ",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" integer :: mu  ! global channel  label  ",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" integer :: mu_yes ! channel  label delayed reaction only",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer :: mu_no ! channel  label non delayed reaction only",sep="")
+k<-k+1
+commandf90[k,1]<-paste("logical, allocatable, dimension(:) :: consuming ",sep="")
+k<-k+1
+commandf90[k,1]<-paste("real, allocatable, dimension(:) :: kinetic_rate,vector_mu_tilde",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer :: etat_initial, etat_final",sep="")
+k<-k+1
+commandf90[k,1]<-paste("",sep="")
+k<-k+1
+commandf90[k,1]<-paste("real, allocatable, dimension(:)  :: Y_concentration !  vector of the N chemical  species before scaling",sep="")
+k<-k+1
+commandf90[k,1]<-paste("END MODULE variables",sep="")
+k<-k+1
+commandf90[k,1]<-paste("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",sep="")
+k<-k+1
+commandf90[k,1]<-paste("MODULE parameters",sep="")
+k<-k+1
+commandf90[k,1]<-paste("",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" integer :: nrun, nruntotal !  number of runs of set of chemical  reactions to  be done",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" integer :: freq_run_saving  !frequence de sauvegarde des fichiers every X run",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" integer ::  ntotal !  number of chemical  reactions to  be simulated",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" integer :: N_species ! number of chemical  species in the system (see below for model specification)",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" parameter ( N_species = ",nbre_species,")",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" integer :: M_react_channel ! number of reaction channels   (see below for model specification)",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" parameter (M_react_channel = ",nbre_reactions,")",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" integer :: M_delayed !  number of reaction including a delay",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" parameter (M_delayed = 100000)",sep="")
+k<-k+1
+commandf90[k,1]<-paste("",sep="")
+k<-k+1
+commandf90[k,1]<-paste("! frequency of saving for chemical  events",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer  :: saving_frequency",sep="")
+k<-k+1
+commandf90[k,1]<-paste("",sep="")
+k<-k+1
+commandf90[k,1]<-paste("",sep="")
+k<-k+1
+commandf90[k,1]<-paste("! size of the output file",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer :: number_events_saved",sep="")
+k<-k+1
+commandf90[k,1]<-paste("parameter (number_events_saved= 50000)",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" real ::  scaling ",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer :: last_node_tree",sep="")
+k<-k+1
+commandf90[k,1]<-paste("integer :: deep_tree",sep="")
+k<-k+1
+commandf90[k,1]<-paste(" parameter (deep_tree = ",h_max,")",sep="")
+k<-k+1
+commandf90[k,1]<-paste("END MODULE parameters",sep="")
+k<-k+1
+commandf90[k,1]<-paste("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",sep="")
+k<-k+1
+commandf90[k,1]<-paste("MODULE statistics",sep="")
+k<-k+1
+commandf90[k,1]<-paste("real :: SSA_duration",sep="")
+k<-k+1
+commandf90[k,1]<-paste("real :: SSA_physical_time_av ",sep="")
+k<-k+1
+commandf90[k,1]<-paste("END MODULE statistics",sep="")
+
+
+
+for (i in 1:nrow(commandf90))
+{
+   if (as.character(commandf90[i,1])==as.character("NA?#")){commandf90[i,1]<-""}
+}
+
+setwd(fichier_output_f90_projet)
+  write(commandf90, file="common_mod.f90")
+setwd(Name_file_initial_data)
+
+
+#######################################################################################
+# subroutine scaling_set_up
+#######################################################################################
+
+scaling_set_upf90<-matrix(nrow = 2*nbre_species+30 ,ncol = 1)
+scaling_set_upf90[,]<-"NA?#"
+
+scaling_set_upf90[1,1]<-"subroutine scaling_set_up()"
+scaling_set_upf90[2,1]<-"use variables"
+scaling_set_upf90[3,1]<-"use  parameters"
+scaling_set_upf90[4,1]<-"implicit none"
+scaling_set_upf90[5,1]<-"integer :: j,i,index_smallest"
+scaling_set_upf90[6,1]<-"real :: intermediaire"
+k<- 7
+for (i in 1:nbre_species)
+{
+ k<- k+1
+ scaling_set_upf90[k,1]<- paste("!species name: ", reactions_input[i,1], sep="")
+ k<- k+1
+ scaling_set_upf90[k,1]<- paste("Y_concentration(",i,")=", init_molecules[i,1], sep="" )
+}
+
+k<-k+1
+scaling_set_upf90[k,1]<-"intermediaire = 100.0"
+k<-k+1
+scaling_set_upf90[k,1]<-"do i=1,N_species"
+k<-k+1
+scaling_set_upf90[k,1]<-"  if ((Y_concentration(i) <= intermediaire ) .AND.  (Y_concentration(i)> 0.0) ) then"
+k<-k+1
+scaling_set_upf90[k,1]<-"     intermediaire = Y_concentration(i) "
+k<-k+1
+scaling_set_upf90[k,1]<-"     index_smallest = i"
+k<-k+1
+scaling_set_upf90[k,1]<-"   end if"
+k<-k+1
+scaling_set_upf90[k,1]<-"end do"
+k<-k+1
+scaling_set_upf90[k,1]<-"scaling = 0.0"
+k<-k+1
+scaling_set_upf90[k,1]<-"do while ( floor(intermediaire) < 100 )"
+k<-k+1
+scaling_set_upf90[k,1]<-"      scaling = scaling+10.0"
+k<-k+1
+scaling_set_upf90[k,1]<-"      intermediaire = scaling*Y_concentration( index_smallest)"
+k<-k+1
+scaling_set_upf90[k,1]<-"end do"
+k<-k+1
+scaling_set_upf90[k,1]<-"if (scaling == 0.0) then"
+k<-k+1
+scaling_set_upf90[k,1]<-"  scaling = 1.0"
+k<-k+1
+scaling_set_upf90[k,1]<-"end if"
+k<-k+1
+scaling_set_upf90[k,1]<-"end subroutine scaling_set_up"
+
+for (i in 1:nrow(scaling_set_upf90))
+{
+  if (as.character(scaling_set_upf90[i,1])==as.character("NA?#")){scaling_set_upf90[i,1]<-""}
+}
+
+setwd(fichier_output_f90_projet)
+   write(scaling_set_upf90, file="SSA_scaling_set_up.f90")
+setwd(Name_file_initial_data)
+
+#######################################################################################
+# initialization  condition of the rate constants at the beginning of the simulation
+#######################################################################################
+constantes_reaction<- matrix(nrow =  nbre_reactions, 1)
+
+init_constants <-matrix(nrow =  nbre_reactions , ncol = 2)
+init_constants <- read.csv(list_of_rate_constants,header=FALSE)
+
+
+for (i  in 1:nbre_reactions)
+{
+ if (reactions_input[i,13] == 0)
+ {
+   constantes_reaction[i,1]<-paste("kinetic_rate(",i,")=",init_constants[i,2], sep="")
+ }
+ if (reactions_input[i,13] == 1)
+ {
+   constantes_reaction[i,1]<-paste("kinetic_rate(",i,")=",init_constants[i,2],"/scaling", sep="")
+ }
+ if (reactions_input[i,13] == 2)
+ {
+   constantes_reaction[i,1]<-paste("kinetic_rate(",i,")=",init_constants[i,2],"*scaling", sep="")
+ }
+}
+
+#######################################################################################
+# c_nu file
+#######################################################################################
+c_nu<-  matrix(nrow = nbre_reactions, ncol = 1)
+
+for (i in 1:nbre_reactions)
+{
+  c_nu[i,1]<-paste("c_nu(",i,")= ", reactions_input2[i,15],  sep="")
+}
+
+# file containing the value of the delay for each  reaction
+# column 1 is the value (colunm 14)
+# column 2 is the property consuming or non consuming reaction (column 16)
+# 1 =  consuming  and 2 equal non  consuming reaction (consuming = FALSE (value = 2) pour transcription et translation)
+
+delay_file<- matrix(nrow= nbre_reactions, ncol = 2)
+
+
+for (i in 1:nbre_reactions)
+{
+  delay_file[i,1]<-paste("d_mu(",i,")= ", reactions_input2[i,14],"*1.0",  sep="")
+  if (reactions_input2[i,16] == 1){delay_file[i,2]<-paste("consuming(",i,")= .TRUE.",  sep="")}
+  if (reactions_input2[i,16] == 2){delay_file[i,2]<-paste("consuming(",i,")= .FALSE.",  sep="")}
+}
+#######################################################################################
+# update_matrix:  configuration of the stochiometric matrix for the update of the number
+#  of molecules for each species after each  reaction
+#######################################################################################
+update_matrix <- matrix(nrow = 3*nbre_reactions, ncol = 1)
+update_matrix[,]<-"NA?#"
+
+for (i in 1: nrow(h_function_constante))
+{
+  update_matrix[i,1] <- paste("update_matrix(",reactions_input2[i,10],",",i,")=1",  sep="") 
+}
+
+
+j = nrow(h_function_constante)
+second_step<-nrow(h_function_constante)+1
+for (i in second_step:nbre_reactions)
+{
+ if (is.na(reactions_input2[i,9]) == FALSE)
+ {
+  if (reactions_input2[i,8] == reactions_input2[i,9])
+  {
+   j = j+1
+   update_matrix[j,1] <- paste("update_matrix(",-reactions_input2[i,8],",",i,")=-2",  sep="")
+  }
+  if (reactions_input2[i,8]!=reactions_input2[i,9])
+  {
+   j = j+1
+   update_matrix[j,1] <- paste("update_matrix(",-reactions_input2[i,8],",",i,")=-1",  sep="") 
+   if (reactions_input2[i,9] !=0)
+   {
+     j =j+1
+     update_matrix[j,1] <- paste("update_matrix(",-reactions_input2[i,9],",",i,")=-1",  sep="")
+   }
+  } 
+ }
+ if (is.na(reactions_input2[i,9]) == TRUE)
+ {
+  j = j+1
+  update_matrix[j,1] <- paste("update_matrix(",-reactions_input2[i,8],",",i,")=-1",  sep="")
+ }
+
+ if (is.na(reactions_input2[i,10]) == FALSE)
+ {
+   if (reactions_input2[i,10] !=0)
+   {
+    j =j+1
+    update_matrix[j,1] <- paste("update_matrix(",reactions_input2[i,10],",",i,")=1",  sep="")
+   }
+ }
+ if (is.na(reactions_input2[i,11]) == FALSE)
+ {
+   if (reactions_input2[i,11] !=0)
+   {
+    j =j+1
+    update_matrix[j,1] <- paste("update_matrix(",reactions_input2[i,11],",",i,")=1",  sep="")
+   }
+ }
+}
+
+
+for  (i in second_step:nbre_reactions)
+{
+   if ( (is.na(reactions_input2[i,8]) == FALSE) &&  (is.na(reactions_input2[i,10]) == FALSE))
+   {
+     if (abs(reactions_input2[i,8]) == reactions_input2[i,10] )
+     {
+      j<-j+1
+      update_matrix[j,1] <- paste("update_matrix(",-reactions_input2[i,8],",",i,")=0",  sep="")
+     }
+    }
+    if ( (is.na(reactions_input2[i,8]) == FALSE) &&  (is.na(reactions_input2[i,11]) == FALSE))
+    {
+     if (abs(reactions_input2[i,8]) == reactions_input2[i,11] )
+     {
+      j<-j+1
+      update_matrix[j,1] <- paste("update_matrix(",-reactions_input2[i,8],",",i,")=0",  sep="")
+     }
+    }
+    if ( (is.na(reactions_input2[i,9]) == FALSE) &&  (is.na(reactions_input2[i,10]) == FALSE))
+    {
+      if (abs(reactions_input2[i,9]) == reactions_input2[i,10] )
+      {
+       j<-j+1
+       update_matrix[j,1] <- paste("update_matrix(",-reactions_input2[i,9],",",i,")=0",  sep="")
+      }
+    }
+   if ( (is.na(reactions_input2[i,9]) == FALSE) &&  (is.na(reactions_input2[i,11]) == FALSE))
+   {
+     if (abs(reactions_input2[i,9]) == reactions_input2[i,11] )
+     {
+      j<-j+1
+      update_matrix[j,1] <- paste("update_matrix(",-reactions_input2[i,9],",",i,")=0",  sep="")
+     }
+   }
+}# fin de for 
+
+
+
+for (i in 1:nrow(update_matrix))
+{
+   if (as.character(update_matrix[i,1])==as.character("NA?#")){update_matrix[i,1]<-""}
+}
+
+
+######################################################################################################
+# subdivision between  reactions involving delay and no  delay
+######################################################################################################
+vector_mu_tilde<-matrix(nrow = nbre_reactions,  ncol = 1)
+vector_inverse_delay<-matrix(nrow = nbre_reactions,  ncol = 1)
+vector_inverse_nodelay<-matrix(nrow = nbre_reactions,  ncol = 1)
+export_vector_fortran<- matrix(nrow = nbre_reactions,  ncol = 1)
+delay_yes <- 0
+delay_no <- 0
+ 
+for (i in 1:nbre_reactions)
+{
+   if (reactions_input2[i,14] != 0)
+   {
+    delay_yes = delay_yes +1
+    vector_mu_tilde[i,1]<-delay_yes
+    vector_inverse_delay[delay_yes,1]<- i
+   }
+   if (reactions_input2[i,14] == 0)
+   {
+    delay_no = delay_no +1
+    vector_mu_tilde[i,1]<-delay_no
+    vector_inverse_nodelay[delay_no,1]<- i
+   }
+}
+for (i in 1:nbre_reactions)
+{
+   export_vector_fortran[i,1]<- paste("vector_mu_tilde(",i,")=",vector_mu_tilde[i,1], sep="" )
+}
+
+################################################################################################
+#
+#  CREATION OF THE INPUT FILE WRITTEN IN THE F90  FORMAT,  THE FOLLOWING INCLUDES:
+#  1) INITIAL CONDITION SET UP
+#  2) STOCHIOMETRIC INITIALIZATION
+# 
+################################################################################################
+stochiometric_part<-nrow(update_matrix)+5*nbre_reactions+nrow(binary_tree)+95 
+
+initializationf90<-matrix(nrow = 2*nbre_species+nbre_reactions+15+stochiometric_part ,ncol = 1)
+initializationf90[,]<-"NA?#"
+
+initializationf90[1,1]<-"subroutine  initial_condition()"
+initializationf90[2,1]<-"use variables"
+initializationf90[3,1]<-"use  parameters"
+initializationf90[4,1]<-"implicit none"
+initializationf90[5,1]<-"integer :: j,i"
+initializationf90[6,1]<-"!  initial  amount for each chemical  species"
+k<-6
+for (i in 1:nrow(initialisation))
+{
+  k<-k+1
+  initializationf90[k,1]<-paste(initialisation[i,1],sep="")
+}
+k<-k+1
+
+for (i in 1:nrow(h_nu))
+{
+  k<-k+1
+  initializationf90[k,1]<-paste(h_nu[i,1],sep="")
+}
+k<-k+1
+initializationf90[k,1]<-"p_sum(1) =  h_nu(1)*c_nu(1)"
+k<-k+1
+initializationf90[k,1]<-"a_nu(1) =  p_sum(1)"
+k<-k+1
+initializationf90[k,1]<-" do j=2,M_react_channel"
+k<-k+1
+initializationf90[k,1]<-"      a_nu(j) = h_nu(j)*c_nu(j)"
+k<-k+1
+initializationf90[k,1]<-"     p_sum(j) = a_nu(j)+p_sum(j-1)"
+k<-k+1
+initializationf90[k,1]<-" end do"
+k<-k+1
+initializationf90[k,1]<-"end subroutine  initial_condition"
+
+
+
+k<-k+1
+initializationf90[k,1]<-"subroutine  stochiometric_initialization()"
+k<-k+1
+initializationf90[k,1]<-"use variables"
+k<-k+1
+initializationf90[k,1]<-"use parameters"
+k<-k+1
+initializationf90[k,1]<-"implicit none"
+k<-k+1
+initializationf90[k,1]<-"integer :: j,i,k"
+
+for (i in 1:nbre_reactions)
+{
+  k<-k+1
+  initializationf90[k,1]<-paste(constantes_reaction[i,1],sep="")
+}
+
+for (i in 1:nrow(update_matrix))
+{
+  k<-k+1
+  initializationf90[k,1]<-paste(update_matrix[i,1],sep="")
+}
+k<-k+1
+initializationf90[k,1]<-"do i=1, M_react_channel"
+k<-k+1
+initializationf90[k,1]<-"k = 0"
+k<-k+1
+initializationf90[k,1]<-"  do j=1,N_species"
+k<-k+1
+initializationf90[k,1]<-"   if (update_matrix(j,i) /= 0) then"
+k<-k+1
+initializationf90[k,1]<-"    k = k+1"
+k<-k+1
+initializationf90[k,1]<-"    update(k,i) = update_matrix(j,i)"
+k<-k+1
+initializationf90[k,1]<-"     number_species(k,i)%species => Y(j)"
+k<-k+1
+initializationf90[k,1]<-"    end if"
+k<-k+1
+initializationf90[k,1]<-"  end do"
+k<-k+1
+initializationf90[k,1]<-" stochio_number(i) = k"
+k<-k+1
+initializationf90[k,1]<-"  end do"
+k<-k+1
+initializationf90[k,1]<-paste("do i=1",",",2**h-1,sep="")
+k<-k+1
+initializationf90[k,1]<-"  leftchild(i) = 2*i+1"
+k<-k+1
+initializationf90[k,1]<-"  rightchild(i) = 2*i+2"
+k<-k+1
+initializationf90[k,1]<-"  tree_structure(i)%childgauche =  leftchild(i) "
+k<-k+1
+initializationf90[k,1]<-" tree_structure(i)%childdroit =  rightchild(i) "
+k<-k+1
+initializationf90[k,1]<-"end do"
+k<-k+1
+initializationf90[k,1]<-paste("do i=",2**h-1,",",2**(h+1)-2,sep="")
+k<-k+1
+initializationf90[k,1]<-"  leftchild(i) = 0"
+k<-k+1
+initializationf90[k,1]<-"  rightchild(i) = 0"
+k<-k+1
+initializationf90[k,1]<-"  tree_structure(i)%childgauche =  leftchild(i) "
+k<-k+1
+initializationf90[k,1]<-" tree_structure(i)%childdroit =  rightchild(i)"
+k<-k+1
+initializationf90[k,1]<-"end do"
+k<-k+1
+initializationf90[k,1]<-""
+
+for (i in 1:nrow(binary_tree)){
+k<-k+1
+initializationf90[k,1]<-paste(binary_tree[i,1],sep="")
+}
+
+k<-k+1
+initializationf90[k,1]<-paste("do i=1",",",2**(h+1)-2,sep="")
+k<-k+1
+initializationf90[k,1]<-"  tree_structure(i)%parents =binary_tree(floor((i-1)/2.0)) "
+k<-k+1
+initializationf90[k,1]<-"   tree_structure(i)%label =binary_tree(i)"
+k<-k+1
+initializationf90[k,1]<-"   tree_structure(i)%psum => p_sum( binary_tree(i) )"
+k<-k+1
+initializationf90[k,1]<-"end do"
+k<-k+1
+initializationf90[k,1]<-"  do i = 1, M_delayed"
+k<-k+1
+initializationf90[k,1]<-"   react_t_delay(i) = 10000.0"
+k<-k+1
+initializationf90[k,1]<-"    mu_delayed(i) = 0"
+k<-k+1
+initializationf90[k,1]<-"   end do"
+k<-k+1
+initializationf90[k,1]<-"   do i=1,N_species"
+k<-k+1
+initializationf90[k,1]<-"   do  j=1, M_react_channel"
+k<-k+1
+initializationf90[k,1]<-"    if (update_matrix(i,j).le. 0) then"
+k<-k+1
+initializationf90[k,1]<-"            update_matrix_tilde(i,j) =  update_matrix(i,j)"
+k<-k+1
+initializationf90[k,1]<-"             update_matrix_product(i,j) =  0"
+k<-k+1
+initializationf90[k,1]<-"      end if  "
+k<-k+1
+initializationf90[k,1]<-"    if (update_matrix(i,j).gt. 0) then "
+k<-k+1
+initializationf90[k,1]<-"             update_matrix_tilde(i,j) =  0"
+k<-k+1             
+initializationf90[k,1]<-"             update_matrix_product(i,j) =  update_matrix(i,j)"
+k<-k+1
+initializationf90[k,1]<-"     end if "
+k<-k+1
+initializationf90[k,1]<-"   end do"
+k<-k+1
+initializationf90[k,1]<-"   end do"
+k<-k+1
+initializationf90[k,1]<-"do i=1, M_react_channel"
+k<-k+1
+initializationf90[k,1]<-"k = 0"
+k<-k+1
+initializationf90[k,1]<-" do j=1,N_species"
+k<-k+1
+initializationf90[k,1]<-"    if (update_matrix_tilde(j,i) /= 0) then"
+k<-k+1
+initializationf90[k,1]<-"      k = k+1"
+k<-k+1
+initializationf90[k,1]<-"     update_tilde(k,i) = update_matrix_tilde(j,i)"
+k<-k+1
+initializationf90[k,1]<-"     number_species_tilde(k,i)%species => Y(j)"
+k<-k+1
+initializationf90[k,1]<-"    end if"
+k<-k+1
+initializationf90[k,1]<-"  end do"
+k<-k+1
+initializationf90[k,1]<-" stochio_number_tilde(i) = k"
+k<-k+1
+initializationf90[k,1]<-"end do"
+k<-k+1
+initializationf90[k,1]<-"do i=1, M_react_channel"
+k<-k+1
+initializationf90[k,1]<-"k = 0"
+k<-k+1
+initializationf90[k,1]<-"  do j=1,N_species"
+k<-k+1
+initializationf90[k,1]<-"   if (update_matrix_product(j,i) /= 0) then"
+k<-k+1
+initializationf90[k,1]<-"     k = k+1"
+k<-k+1
+initializationf90[k,1]<-"      update_product(k,i) = update_matrix_product(j,i)"
+k<-k+1
+initializationf90[k,1]<-"    number_species_product(k,i)%species => Y(j)"
+k<-k+1
+initializationf90[k,1]<-"   end if"
+k<-k+1
+initializationf90[k,1]<-"  end do"
+k<-k+1
+initializationf90[k,1]<-"  stochio_number_product(i) = k"
+k<-k+1
+initializationf90[k,1]<-"end do"
+
+for (i in 1:nrow(delay_file)){
+k<-k+1
+initializationf90[k,1]<-paste(delay_file[i,1],sep="")
+}
+for (i in 1:nrow(delay_file)){
+k<-k+1
+initializationf90[k,1]<-paste(delay_file[i,2],sep="")
+}
+for (i in 1:nrow(c_nu)){
+k<-k+1
+initializationf90[k,1]<-paste(c_nu[i,1],sep="")
+}
+for (i in 1:nrow(export_vector_fortran)){
+k<-k+1
+initializationf90[k,1]<-paste(export_vector_fortran[i,1],sep="")
+}
+k<-k+1
+initializationf90[k,1]<-"end subroutine  stochiometric_initialization"
+for (i in 1:nrow(initializationf90)){
+if (as.character(initializationf90[i,1])==as.character("NA?#")){initializationf90[i,1]<-""}
+}
+
+setwd(fichier_output_f90_projet)
+write(initializationf90, file="SSA_input_data.f90")
+setwd(Name_file_initial_data)
+##########################################################################################################
+
+
+##########################################################################################################
+#                                  PROGRAM TO  BUILD THE  SKELETON OF THE DEPENDANCY GRAPH
+#                                      USED TO UPDATE THE A_NU AFTER EACH  REACTIONS
+#                                           
+#
+########################################################################################################
+# if there are only delayed reactions or only non delayed reactions then  only one dependancy graph is necessary
+
+
+
+if (delay_yes == nbre_reactions  | delay_no == nbre_reactions){
+# nombre de lignes dans skeleton
+nodes<- 0
+for (i in 1:h){
+nodes<- nodes + 3*(2**i)
+
+}
+nodes<-nodes+ 10*(2**h)
+
+dependancy_graph_skeleton <- matrix(nrow = 2*nodes, ncol = h+1)
+dependancy_graph_skeleton[,]<-"NA?#"
+nbre_groups<-  2**(h-1)
+
+length_groups<- matrix(nrow = nbre_groups, ncol = h+1)
+
+
+# for each  group  we can  write the three dependancy graphs corresponding to  the three equations
+
+k<- 0
+j<- 0
+liste_eq<-0 
+for (i in 1:nbre_groups){
+length<- 1 
+ j<-j+1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- paste("if (mu.eq.",j,") then",sep="")
+
+for (related_eq in 1:outdegree_equation[j,1]){
+liste_eq<-liste_eq +1
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- dependancy_graph[liste_eq,1]
+}
+
+length<-length +1
+ j<-j+1
+k<-k+1
+dependancy_graph_skeleton[k,1] <-paste("else if (mu.eq.",j,") then",sep="")
+
+
+for (related_eq in 1:outdegree_equation[j,1]){
+liste_eq<-liste_eq +1
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- dependancy_graph[liste_eq,1]
+}
+
+
+length<-length +1
+ j<-j+1
+k<-k+1
+dependancy_graph_skeleton[k,1] <-paste("else",sep="")
+
+
+for (related_eq in 1:outdegree_equation[j,1]){
+liste_eq<-liste_eq +1
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- dependancy_graph[liste_eq,1]
+}
+
+
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <-paste("end if",sep="")
+length_groups[i,1]<- length
+}  
+
+#======================================================================================================
+depth_k<- h-2
+colone<- 0
+for (depth_actual in depth_k:1){
+colone<-colone +1
+nexth <- colone +1
+y<- 2**(depth_actual)
+k<-0
+l<-0
+m<-0
+#============
+
+insert_actual<- depth_actual-1
+nodes_insert<- 0
+
+for(insert in 1:insert_actual){
+
+nodes_insert<-nodes_insert + 2**insert
+
+}
+if (insert_actual == 0){nodes_insert<- 0}
+#============
+for (i in 1:y){
+nodes_insert<-nodes_insert +1
+m<-m+1
+length_groups[i,nexth]<-0
+k<-k+1
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+dependancy_graph_skeleton[k,nexth]<- paste("if (mu .le.",  nodes_number[nodes_insert,1]
+,") then",sep="")
+ for (j in 1:length_groups[m,colone] ){
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+l<-l+1
+k<-k+1
+dependancy_graph_skeleton[k,nexth]<- dependancy_graph_skeleton[l,colone]
+
+}
+m<-m+1
+k<-k+1
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+dependancy_graph_skeleton[k,nexth]<- paste("else",sep="")
+ for (j in 1:length_groups[m,colone] ){
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+l<-l+1
+k<-k+1
+dependancy_graph_skeleton[k,nexth]<- dependancy_graph_skeleton[l,colone]
+
+}
+k<-k+1
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+dependancy_graph_skeleton[k,colone+1]<- paste("end if",sep="")
+
+}
+
+}
+
+last_label<-2*initialization_nodes[1,1]
+brol<-1
+dependancy_graph_skeleton[1,ncol(dependancy_graph_skeleton)]<- paste("if (mu .le.",last_label
+,") then",sep="")
+for (k in 1:length_groups[1,nexth]){
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<-dependancy_graph_skeleton[k,colone+1]
+}
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<- paste("else",sep="")
+intermediare_step<-length_groups[1,nexth]+1
+final<-length_groups[1,nexth]+length_groups[2,nexth]
+for (k in intermediare_step:final){
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<-dependancy_graph_skeleton[k,colone+1]
+}
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<- paste("end if",sep="")
+
+
+for (i in 1:nrow(dependancy_graph_skeleton)){
+if (as.character(dependancy_graph_skeleton[i,ncol(dependancy_graph_skeleton)])==as.character("NA?#")){dependancy_graph_skeleton[i,ncol(dependancy_graph_skeleton)]<-""}
+}
+
+
+################################################################################################
+#
+#  CREATION OF THE INPUT FILE WRITTEN IN THE F90  FORMAT,  THE FOLLOWING INCLUDES:
+#  
+#  3) CORE OF THE GILLESPIE ALGORITHM	
+################################################################################################
+central_core<-matrix(nrow = nrow(dependancy_graph_skeleton)+160,  ncol = 1)
+central_core[,] <-"NA?#"
+k<-0
+k<-k+1
+central_core[k,1]<-"subroutine Gillespie_LDM()" 
+k<-k+1
+central_core[k,1]<-"use  parameters" 
+k<-k+1
+central_core[k,1]<-"use  variables" 
+k<-k+1
+central_core[k,1]<-"implicit none" 
+k<-k+1
+central_core[k,1]<-"real    ::  r1,r2, a_t, F, lambda1, lambda2,x, tau" 
+k<-k+1
+central_core[k,1]<-"integer ::   j, n, k,i,l" 
+k<-k+1
+central_core[k,1]<-"integer ::   index,x_min" 
+if (mol_added_yes)
+{
+#k<-k+1
+#central_core[k,1]<-paste("logical mol_added(",nrow(molecules_added),") ",sep="")
+k<-k+1
+central_core[k,1]<-paste(" mol_added(1:",nrow(molecules_added),") = .TRUE. ",sep="") 
+} # end if (mol_added_yes)
+k<-k+1
+central_core[k,1]<-"i = 0" 
+k<-k+1
+central_core[k,1]<-"do n = 1, ntotal" 
+if (mol_added_yes)
+{
+    for (add in 1:nrow(addition_mol_running))
+    {
+        k<-k+1
+        central_core[k,1]<-paste(addition_mol_running[add,1],sep="")
+    } # end for (add in 1:nrow(addition_mol_running))
+} # end if (mol_added_yes) 
+k<-k+1
+central_core[k,1]<-"CALL RANDOM_NUMBER(r1)" 
+k<-k+1
+central_core[k,1]<-"CALL RANDOM_NUMBER(r2)" 
+k<-k+1
+central_core[k,1] <-"tau = (1./p_sum(M_react_channel))*log(1./r1)"
+k<-k+1
+central_core[k,1] <-"  t = t+  tau" 
+k<-k+1
+central_core[k,1]<-"  sum = r2*p_sum(M_react_channel)" 
+k<-k+1
+central_core[k,1]<-paste(" x= p_sum(",(2**h+2**(h-1))/2,")",sep="") 
+k<-k+1
+central_core[k,1]<-" if ( sum .lt. x) then" 
+k<-k+1
+central_core[k,1]<-"   index = 1" 
+k<-k+1
+central_core[k,1]<-"    x =  tree_structure(index)%psum" 
+k<-k+1
+central_core[k,1]<-"else" 
+k<-k+1
+central_core[k,1]<-"     index = 2" 
+k<-k+1
+central_core[k,1]<-"    x =  tree_structure(index)%psum " 
+k<-k+1
+central_core[k,1]<-"  end if" 
+k<-k+1
+central_core[k,1]<-" do while (  tree_structure(index)%childgauche /= 0)" 
+k<-k+1
+central_core[k,1]<-"   if ( sum .lt. x) then" 
+k<-k+1
+central_core[k,1]<-"   index = tree_structure(index)%childgauche" 
+k<-k+1
+central_core[k,1]<-"       x = tree_structure(index)%psum" 
+k<-k+1
+central_core[k,1]<-"  else" 
+k<-k+1
+central_core[k,1]<-"       index = tree_structure(index)%childdroit" 
+k<-k+1
+central_core[k,1]<-"      x = tree_structure(index)%psum" 
+k<-k+1
+central_core[k,1]<-"  end if" 
+k<-k+1
+central_core[k,1]<-"  end do" 
+k<-k+1
+central_core[k,1]<-"  if  ( sum .lt. x) then" 
+k<-k+1
+central_core[k,1]<-"   mu = tree_structure(index)%label" 
+k<-k+1
+central_core[k,1]<-" else" 
+k<-k+1
+central_core[k,1]<-"   mu = tree_structure(index)%parents " 
+k<-k+1
+central_core[k,1]<-" end if " 
+k<-k+1
+central_core[k,1]<-"  do l = 1, stochio_number(mu)" 
+k<-k+1
+central_core[k,1]<-"    number_species(l,mu)%species =   number_species(l,mu)%species+   update(l,mu)" 
+k<-k+1
+central_core[k,1]<-"  end do" 
+
+
+for (i in 1:nrow(dependancy_graph_skeleton)){
+k<-k+1
+central_core[k,1]<-paste(dependancy_graph_skeleton[i,ncol(dependancy_graph_skeleton)],sep="")
+}
+
+
+k<-k+1
+central_core[k,1]<-" do j=x_min,M_react_channel"
+k<-k+1
+central_core[k,1]<-"     p_sum(j) = a_nu(j)+p_sum(j-1)"
+k<-k+1
+central_core[k,1]<-" end do"
+
+
+k<-k+1
+central_core[k,1]<-"  if (n>=10) then"
+k<-k+1
+central_core[k,1]<-"   matrix_nbre_transition(etat_initial,mu) = matrix_nbre_transition(etat_initial,mu)+1"
+k<-k+1
+central_core[k,1]<-"   matrix_A_transition(etat_initial,mu) = matrix_A_transition(etat_initial,mu)+a_nu(mu)"
+k<-k+1
+central_core[k,1]<-"   matrix_Adt_transition(etat_initial,mu) = matrix_Adt_transition(etat_initial,mu)+a_nu(mu)*tau"
+k<-k+1
+central_core[k,1]<-" end if "
+k<-k+1
+central_core[k,1]<-"   etat_initial = mu"
+
+k<-k+1
+central_core[k,1]<-" if (mod(n,saving_frequency).eq.0) then" 
+k<-k+1
+central_core[k,1]<-"   i = i+1" 
+k<-k+1
+central_core[k,1]<-"   matrix_result(i,1:N_species) =  matrix_result(i,1:N_species) +Y(1:N_species)" 
+k<-k+1
+central_core[k,1]<-"   matrix_result(i,N_species+1) = matrix_result(i,N_species+1) + t" 
+k<-k+1
+central_core[k,1]<-"  end if" 
+k<-k+1
+central_core[k,1]<-"end do" 
+k<-k+1
+central_core[k,1]<-"end subroutine Gillespie_LDM" 
+
+
+for (i in 1:nrow(central_core)){
+if (as.character(central_core[i,1])==as.character("NA?#")){central_core[i,1]<-""}
+}
+
+setwd(fichier_output_f90_projet)
+write(central_core, file="SSA_central_core_partial_summation_DG.f90")
+setwd(Name_file_initial_data)
+
+
+}#end of if (delay_yes == nbre_reactions  ou delay_no == nbre_reactions)
+
+#######################################################################################################
+#
+#   Creation of the partial  dependancy graphs if there are a mix of delayed and non delayed reactions
+#
+#######################################################################################################
+
+#===============================================================================================
+# If there are delay AND non delay reactions we can  build two  different dependancy graphs:
+#===============================================================================================
+if (delay_yes != nbre_reactions  && delay_no != nbre_reactions){
+
+dependancy_graph_column<- matrix(nrow = 250, ncol = nbre_reactions)
+dependancy_graph_column[,]<-"NA?#"
+
+k<-0
+for (i in 1:nbre_reactions){
+ for (j in 1:outdegree_equation[i,1]){
+      k<-k+1 
+      dependancy_graph_column[j,i]<-dependancy_graph[k,1] 
+ }
+}
+
+
+for (i in 1:nrow(dependancy_graph_column)){
+for (j in 1:ncol(dependancy_graph_column)){
+if (as.character(dependancy_graph_column[i,j])==as.character("NA?#")){dependancy_graph_column[i,j]<-""}
+}
+}
+
+################################################################################################
+#  Dependancy graph for the reactions without delay
+################################################################################################
+
+# h is the depth of the tree and n is the corresponding numbert of nodes for the level  h of the tree
+nbre_reactions<-delay_no
+n<-1
+h<-0
+while (n+n/2<nbre_reactions){n<- 2*n
+              h<-h+1
+ 
+            }
+
+# n_total is the total  number of nodes in the tree for the reactions without delay
+
+n_total<-  2**(h+1)-1
+
+#=========================================================================================================
+# fill  in of the binary tree (node zero  has the  index: 2*initialization_nodes[1,1])
+#=========================================================================================================
+nodes_number<-matrix(nrow = n_total-1,  ncol = 1)
+initialization_nodes<-matrix(nrow = h,  ncol = 1)
+
+initialization_nodes[h,1]<-1
+initialization_nodes[h-1,1]<-2
+initialization_nodes[h-2,1]<-3
+x<- h-3
+for (n in x:1){initialization_nodes[n,1]<- 2*initialization_nodes[n+1,1]}
+
+j<-1
+k<-0
+d<- h-1
+for (i in 1:d){
+j <- 2*j
+k<-k+1
+nodes_number[k,1]<- initialization_nodes[i,1]
+for (m in 2:j){
+
+if (i == 1){k<-k+1
+nodes_number[k,1]<- initialization_nodes[i,1] +2*initialization_nodes[1,1]
+} 
+if (i != h){
+if (i != 1){
+k<-k+1
+nodes_number[k,1]<-nodes_number[k-1,1] + initialization_nodes[i-1,1]
+}
+}
+
+}
+}
+
+y<-  2**h-1
+ybis<-  n_total-1
+nodes_number[y,1]<- initialization_nodes[h,1]
+y<-y+1
+for (f in y:ybis ){
+if (floor(f/2)==f/2){nodes_number[f,1]<-nodes_number[f-1,1]+initialization_nodes[h-1,1]}
+if (floor(f/2)!=f/2){nodes_number[f,1]<-nodes_number[f-1,1]+1}
+}
+
+
+for (i in 1:nrow(nodes_number)){if (nodes_number[i,1]>nbre_reactions){nodes_number[i,1]<-nbre_reactions}}
+#======================================================================================================
+#   building the dependancy graph itself for non delayed reactions only
+#======================================================================================================
+
+# nombre de lignes dans skeleton
+nodes<- 0
+for (i in 1:h){
+nodes<- nodes + 3*(2**i)
+
+}
+nodes<-nodes+ 10*(2**h)
+
+dependancy_graph_skeleton <- matrix(nrow = nodes, ncol = h+1)
+dependancy_graph_skeleton[,]<-"NA?#"
+
+nbre_groups<-  2**(h-1)
+
+length_groups<- matrix(nrow = nbre_groups, ncol = h+1)
+
+# for each  group  we can  write the three dependancy graphs corresponding to  the three equations
+
+k<- 0
+j<- 0
+ 
+for (i in 1:nbre_groups){
+length<- 1 
+ j<-j+1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- paste("if (mu_no.eq.",j,") then",sep="")
+
+if (j<=nbre_reactions){
+ for (related_eq in 1:outdegree_equation[vector_inverse_nodelay[j,1],1]){
+   length<-length +1
+   k<-k+1
+   dependancy_graph_skeleton[k,1] <- dependancy_graph_column[related_eq,vector_inverse_nodelay[j,1]]
+ }
+} # if (j<=nbre_reactions)
+
+length<-length +1
+ j<-j+1
+k<-k+1
+dependancy_graph_skeleton[k,1] <-paste("else if (mu_no.eq.",j,") then",sep="")
+
+if (j<=nbre_reactions){
+for (related_eq in 1:outdegree_equation[vector_inverse_nodelay[j,1],1]){
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- dependancy_graph_column[related_eq,vector_inverse_nodelay[j,1]]
+}
+} # if (j<=nbre_reactions)
+
+length<-length +1
+ j<-j+1
+k<-k+1
+dependancy_graph_skeleton[k,1] <-paste("else",sep="")
+
+if (j<=nbre_reactions){
+for (related_eq in 1:outdegree_equation[vector_inverse_nodelay[j,1],1]){
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- dependancy_graph_column[related_eq,vector_inverse_nodelay[j,1]]
+}
+} # if (j<=nbre_reactions)
+
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <-paste("end if",sep="")
+length_groups[i,1]<- length
+}   # for (i in 1:nbre_groups)
+
+#======================================================================================================
+depth_k<- h-2
+colone<- 0
+for (depth_actual in depth_k:1){
+colone<-colone +1
+nexth <- colone +1
+y<- 2**(depth_actual)
+k<-0
+l<-0
+m<-0
+#============
+
+insert_actual<- depth_actual-1
+nodes_insert<- 0
+
+for(insert in 1:insert_actual){
+
+nodes_insert<-nodes_insert + 2**insert
+
+}
+if (insert_actual == 0){nodes_insert<- 0}
+#============
+for (i in 1:y){
+nodes_insert<-nodes_insert +1
+m<-m+1
+length_groups[i,nexth]<-0
+k<-k+1
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+dependancy_graph_skeleton[k,nexth]<- paste("if (mu_no .le.",  nodes_number[nodes_insert,1]
+,") then",sep="")
+ for (j in 1:length_groups[m,colone] ){
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+l<-l+1
+k<-k+1
+dependancy_graph_skeleton[k,nexth]<- dependancy_graph_skeleton[l,colone]
+
+}
+m<-m+1
+k<-k+1
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+dependancy_graph_skeleton[k,nexth]<- paste("else",sep="")
+ for (j in 1:length_groups[m,colone] ){
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+l<-l+1
+k<-k+1
+dependancy_graph_skeleton[k,nexth]<- dependancy_graph_skeleton[l,colone]
+
+}
+k<-k+1
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+dependancy_graph_skeleton[k,colone+1]<- paste("end if",sep="")
+
+}
+
+}
+
+last_label<-2*initialization_nodes[1,1]
+brol<-1
+dependancy_graph_skeleton[1,ncol(dependancy_graph_skeleton)]<- paste("if (mu_no .le.",last_label
+,") then",sep="")
+for (k in 1:length_groups[1,nexth]){
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<-dependancy_graph_skeleton[k,colone+1]
+}
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<- paste("else",sep="")
+intermediare_step<-length_groups[1,nexth]+1
+final<-length_groups[1,nexth]+length_groups[2,nexth]
+for (k in intermediare_step:final){
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<-dependancy_graph_skeleton[k,colone+1]
+}
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<- paste("end if",sep="")
+
+
+for (i in 1:nrow(dependancy_graph_skeleton)){
+if (as.character(dependancy_graph_skeleton[i,ncol(dependancy_graph_skeleton)])==as.character("NA?#")){dependancy_graph_skeleton[i,ncol(dependancy_graph_skeleton)]<-""}
+}
+
+
+################################################################################################
+dependancy_graph_no_delay<-matrix(nrow = nrow(dependancy_graph_skeleton),  ncol  =1)
+dependancy_graph_no_delay[,1]<-dependancy_graph_skeleton[,ncol(dependancy_graph_skeleton)]
+
+###############################################################################################
+################################################################################################
+#  Dependancy graph for the reactions with delay
+################################################################################################
+
+# h is the depth of the tree and n is the corresponding numbert of nodes for the level  h of the tree
+nbre_reactions<-delay_yes
+n<-1
+h<-0
+while (n+n/2<nbre_reactions){n<- 2*n
+              h<-h+1
+ 
+            }
+
+# n_total is the total  number of nodes in the tree for the reactions without delay
+
+n_total<-  2**(h+1)-1
+
+#=========================================================================================================
+# fill  in of the binary tree (node zero  has the  index: 2*initialization_nodes[1,1])
+#=========================================================================================================
+nodes_number<-matrix(nrow = n_total-1,  ncol = 1)
+initialization_nodes<-matrix(nrow = h,  ncol = 1)
+
+initialization_nodes[h,1]<-1
+initialization_nodes[h-1,1]<-2
+if (h > 2){initialization_nodes[h-2,1]<-3
+x<- h-3
+for (n in x:1){initialization_nodes[n,1]<- 2*initialization_nodes[n+1,1]}
+}
+
+
+
+
+j<-1
+k<-0
+d<- h-1
+for (i in 1:d){
+j <- 2*j
+k<-k+1
+nodes_number[k,1]<- initialization_nodes[i,1]
+for (m in 2:j){
+
+if (i == 1){k<-k+1
+nodes_number[k,1]<- initialization_nodes[i,1] +2*initialization_nodes[1,1]
+} 
+if (i != h){
+if (i != 1){
+k<-k+1
+nodes_number[k,1]<-nodes_number[k-1,1] + initialization_nodes[i-1,1]
+}
+}
+
+}
+}
+
+y<-  2**h-1
+ybis<-  n_total-1
+nodes_number[y,1]<- initialization_nodes[h,1]
+y<-y+1
+for (f in y:ybis ){
+if (floor(f/2)==f/2){nodes_number[f,1]<-nodes_number[f-1,1]+initialization_nodes[h-1,1]}
+if (floor(f/2)!=f/2){nodes_number[f,1]<-nodes_number[f-1,1]+1}
+}
+
+
+for (i in 1:nrow(nodes_number)){if (nodes_number[i,1]>nbre_reactions){nodes_number[i,1]<-nbre_reactions}}
+#======================================================================================================
+#   building the dependancy graph itself for delayed reactions only
+#======================================================================================================
+
+# nombre de lignes dans skeleton
+nodes<- 0
+for (i in 1:h){
+nodes<- nodes + 3*(2**i)
+
+}
+nodes<-nodes+ 10*(2**h)
+############ 30  mai  2014 on met 2*nodes au  lieu de nodes
+dependancy_graph_skeleton <- matrix(nrow = 2*nodes, ncol = h+1)
+dependancy_graph_skeleton[,]<-"NA?#"
+
+
+nbre_groups<-  2**(h-1)
+
+length_groups<- matrix(nrow = nbre_groups, ncol = h+1)
+
+# for each  group  we can  write the three dependancy graphs corresponding to  the three equations
+
+k<- 0
+j<- 0
+ 
+for (i in 1:nbre_groups){
+length<- 1 
+ j<-j+1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- paste("if (mu_yes.eq.",j,") then",sep="")
+
+if (j<=nbre_reactions){
+for (related_eq in 1:outdegree_equation[vector_inverse_delay[j,1],1]){
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- dependancy_graph_column[related_eq,vector_inverse_delay[j,1]]
+}
+}
+
+length<-length +1
+ j<-j+1
+k<-k+1
+dependancy_graph_skeleton[k,1] <-paste("else if (mu_yes.eq.",j,") then",sep="")
+
+if (j<=nbre_reactions){
+for (related_eq in 1:outdegree_equation[vector_inverse_delay[j,1],1]){
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- dependancy_graph_column[related_eq,vector_inverse_delay[j,1]]
+}
+}
+
+length<-length +1
+ j<-j+1
+k<-k+1
+dependancy_graph_skeleton[k,1] <-paste("else",sep="")
+
+if (j<=nbre_reactions){
+for (related_eq in 1:outdegree_equation[vector_inverse_delay[j,1],1]){
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <- dependancy_graph_column[related_eq,vector_inverse_delay[j,1]]
+}
+}
+
+length<-length +1
+k<-k+1
+dependancy_graph_skeleton[k,1] <-paste("end if",sep="")
+length_groups[i,1]<- length
+}  
+
+#======================================================================================================
+if (h > 2){
+depth_k<- h-2
+colone<- 0
+for (depth_actual in depth_k:1){
+colone<-colone +1
+nexth <- colone +1
+y<- 2**(depth_actual)
+k<-0
+l<-0
+m<-0
+#============
+
+insert_actual<- depth_actual-1
+nodes_insert<- 0
+
+for(insert in 1:insert_actual){
+
+nodes_insert<-nodes_insert + 2**insert
+
+}
+if (insert_actual == 0){nodes_insert<- 0}
+#============
+for (i in 1:y){
+nodes_insert<-nodes_insert +1
+m<-m+1
+length_groups[i,nexth]<-0
+k<-k+1
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+dependancy_graph_skeleton[k,nexth]<- paste("if (mu_yes .le.",  nodes_number[nodes_insert,1]
+,") then",sep="")
+ for (j in 1:length_groups[m,colone] ){
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+l<-l+1
+k<-k+1
+dependancy_graph_skeleton[k,nexth]<- dependancy_graph_skeleton[l,colone]
+
+}
+m<-m+1
+k<-k+1
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+dependancy_graph_skeleton[k,nexth]<- paste("else",sep="")
+ for (j in 1:length_groups[m,colone] ){
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+l<-l+1
+k<-k+1
+dependancy_graph_skeleton[k,nexth]<- dependancy_graph_skeleton[l,colone]
+
+}
+k<-k+1
+length_groups[i,nexth]<- length_groups[i,nexth]+1
+dependancy_graph_skeleton[k,colone+1]<- paste("end if",sep="")
+
+}
+
+}
+} # fin if h>2
+
+if (h <= 2 ){
+nexth<- 1
+colone<-0
+}
+
+last_label<-2*initialization_nodes[1,1]
+if (h == 2 ){last_label<-3}
+brol<-1
+dependancy_graph_skeleton[1,ncol(dependancy_graph_skeleton)]<- paste("if (mu_yes .le.",last_label
+,") then",sep="")
+for (k in 1:length_groups[1,nexth]){
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<-dependancy_graph_skeleton[k,colone+1]
+}
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<- paste("else",sep="")
+intermediare_step<-length_groups[1,nexth]+1
+final<-length_groups[1,nexth]+length_groups[2,nexth]
+for (k in intermediare_step:final){
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<-dependancy_graph_skeleton[k,colone+1]
+}
+brol<-brol+1
+dependancy_graph_skeleton[brol,ncol(dependancy_graph_skeleton)]<- paste("end if",sep="")
+
+
+for (i in 1:nrow(dependancy_graph_skeleton)){
+if (as.character(dependancy_graph_skeleton[i,ncol(dependancy_graph_skeleton)])==as.character("NA?#")){dependancy_graph_skeleton[i,ncol(dependancy_graph_skeleton)]<-""}
+}
+
+################################################################################################
+
+dependancy_graph_delay<-matrix(nrow = nrow(dependancy_graph_skeleton),  ncol  =1)
+dependancy_graph_delay[,1]<-dependancy_graph_skeleton[,ncol(dependancy_graph_skeleton)]
+
+################################################################################################
+
+# CREATION OF THE CORE_GILLESPIE_LDM  FOR THE MIXED SYSTEM (DELAYED AND NO  DELAYED REACTIONS TOGETHER)
+# 30  mai 2014: on met  2*nrow(dependancy_graph_no_delay) a la place de nrow(dependancy_graph_no_delay)
+central_core2<-matrix(nrow = 2*nrow(dependancy_graph_delay)+160+2*nrow(dependancy_graph_no_delay),  ncol = 1)
+central_core2[,] <-"NA?#"
+k<-0
+k<-k+1
+central_core2[k,1] <-"subroutine Gillespie_LDM()"
+k<-k+1
+central_core2[k,1] <-"use  parameters"
+k<-k+1
+central_core2[k,1] <-"use  variables"
+k<-k+1
+central_core2[k,1] <-"implicit none"
+k<-k+1
+central_core2[k,1] <-"real    ::  r1,r2, a_t, F, lambda1, lambda2,x, tau"
+k<-k+1
+central_core2[k,1] <-"real    ::  check_t"
+k<-k+1
+central_core2[k,1] <-"integer ::   j, n, k,i,l"
+k<-k+1
+central_core2[k,1] <-"integer ::  ongoing, index,x_min"
+if (mol_added_yes)
+{
+#k<-k+1
+#central_core2[k,1]<-paste("logical mol_added(",nrow(molecules_added),") ",sep="")
+k<-k+1
+central_core2[k,1]<-paste(" mol_added(1:",nrow(molecules_added),") = .TRUE. ",sep="") 
+} # end if (mol_added_yes)
+k<-k+1
+central_core2[k,1] <-"ongoing  = 0"
+k<-k+1
+central_core2[k,1] <-"lambda1 = 0.0"
+k<-k+1
+central_core2[k,1] <-"lambda2 = 0.0"
+k<-k+1
+central_core2[k,1] <-"i = 0"
+k<-k+1
+central_core2[k,1] <-"do n = 1, ntotal"
+if (mol_added_yes)
+{
+    for (add in 1:nrow(addition_mol_running))
+    {
+        k<-k+1
+        central_core2[k,1]<-paste(addition_mol_running[add,1],sep="")
+    } # end for (add in 1:nrow(addition_mol_running))
+} # end if (mol_added_yes)
+k<-k+1
+central_core2[k,1] <-" CALL RANDOM_NUMBER(r1)"
+k<-k+1
+central_core2[k,1] <-" CALL RANDOM_NUMBER(r2)"
+k<-k+1
+central_core2[k,1] <-"if (ongoing .eq. 0) then"
+k<-k+1
+central_core2[k,1] <-"tau = (1./p_sum(M_react_channel))*log(1./r1)"
+k<-k+1
+central_core2[k,1] <-"  t = t+  tau"
+k<-k+1
+central_core2[k,1] <-"else "
+k<-k+1
+central_core2[k,1] <-"  lambda1 = t"
+k<-k+1
+central_core2[k,1] <-"  lambda2 =  react_t_delay(1) "
+k<-k+1
+central_core2[k,1] <-" a_t = p_sum(M_react_channel)*(lambda2-lambda1)"
+k<-k+1
+central_core2[k,1] <-"  F = 1 - EXP(-a_t)"
+k<-k+1
+central_core2[k,1] <-" do while( F .lt. r1) "
+k<-k+1
+central_core2[k,1] <-"     mu = mu_delayed(1)"
+k<-k+1
+central_core2[k,1] <-"    if ( consuming(mu))  then"
+k<-k+1
+central_core2[k,1] <-"       do l = 1, stochio_number_product(mu)"
+k<-k+1
+central_core2[k,1] <-"        number_species_product(l,mu)%species =   number_species_product(l,mu)%species+   update_product(l,mu) "
+k<-k+1
+central_core2[k,1] <-"       end do"
+k<-k+1
+central_core2[k,1] <-"    else"
+k<-k+1
+central_core2[k,1] <-"      do l = 1, stochio_number(mu)"
+k<-k+1
+central_core2[k,1] <-"        number_species(l,mu)%species =   number_species(l,mu)%species+   update(l,mu) "
+k<-k+1
+central_core2[k,1] <-"      end do"
+k<-k+1
+central_core2[k,1] <-"   end if"
+k<-k+1
+central_core2[k,1] <-"  mu_yes = vector_mu_tilde(mu)"
+
+for (i in 1:nrow(dependancy_graph_delay)){
+k<-k+1
+central_core2[k,1]<-paste(dependancy_graph_delay[i,1],sep="")
+}
+k<-k+1
+central_core2[k,1] <-"do j=x_min,M_react_channel "
+k<-k+1
+central_core2[k,1] <-"      p_sum(j) = a_nu(j)+p_sum(j-1)"
+k<-k+1
+central_core2[k,1] <-" end do"
+k<-k+1
+central_core2[k,1] <-" lambda1 = react_t_delay(1)"
+k<-k+1
+central_core2[k,1] <-"  if (ongoing.gt.1) then "
+k<-k+1
+central_core2[k,1] <-"   do j = 2,ongoing"
+k<-k+1
+central_core2[k,1] <-"    react_t_delay(j-1)  =  react_t_delay(j) "
+k<-k+1
+central_core2[k,1] <-"    mu_delayed(j-1)  =  mu_delayed(j) "
+k<-k+1
+central_core2[k,1] <-"   end do"
+k<-k+1
+central_core2[k,1] <-"   react_t_delay(ongoing)  =  10000.0 "
+k<-k+1
+central_core2[k,1] <-"   mu_delayed(ongoing)  =  0 "
+k<-k+1
+central_core2[k,1] <-"  end if"
+k<-k+1
+central_core2[k,1] <-"  if (ongoing.eq.1) then"
+k<-k+1
+central_core2[k,1] <-"    react_t_delay(1)  =  10000.0"
+k<-k+1
+central_core2[k,1] <-"    mu_delayed(1)  =  0 "
+k<-k+1
+central_core2[k,1] <-"  end if"
+k<-k+1
+central_core2[k,1] <-"   ongoing  = ongoing -1"
+k<-k+1
+central_core2[k,1] <-"  if (ongoing == 0) exit"
+k<-k+1
+central_core2[k,1] <-"  if (ongoing > 0) then"
+k<-k+1
+central_core2[k,1] <-"    lambda2  =react_t_delay(1) "
+k<-k+1
+central_core2[k,1] <-"    a_t = a_t + p_sum(M_react_channel)*(lambda2-lambda1)"
+k<-k+1
+central_core2[k,1] <-"     F = 1 - EXP(-a_t)"
+k<-k+1 
+central_core2[k,1] <-"   end if"
+k<-k+1
+central_core2[k,1] <-"end do  "
+k<-k+1
+central_core2[k,1] <-"if (ongoing.gt.0) t = lambda1+( - log(1-r1)-a_t+p_sum(M_react_channel)*(lambda2-lambda1))/p_sum(M_react_channel)"
+k<-k+1
+central_core2[k,1] <-"if (ongoing.eq.0) t = lambda1+( - log(1-r1)-a_t)/p_sum(M_react_channel)"
+k<-k+1
+central_core2[k,1] <-"end if"
+k<-k+1
+central_core2[k,1] <-"  sum = r2*p_sum(M_react_channel)"
+k<-k+1
+central_core2[k,1] <-paste("x= p_sum(",(2**h_max+2**(h_max-1))/2,")",sep="")
+k<-k+1
+central_core2[k,1] <-"   if ( sum .lt. x) then"
+k<-k+1
+central_core2[k,1] <-"   index = 1"
+k<-k+1
+central_core2[k,1] <-"     x =  tree_structure(index)%psum "
+k<-k+1
+central_core2[k,1] <-"   else"
+k<-k+1
+central_core2[k,1] <-"    index = 2"
+k<-k+1
+central_core2[k,1] <-"     x =  tree_structure(index)%psum "
+k<-k+1
+central_core2[k,1] <-"  end if"
+k<-k+1
+central_core2[k,1] <-"  do while (  tree_structure(index)%childgauche /= 0)"
+k<-k+1
+central_core2[k,1] <-"   if ( sum .lt. x) then"
+k<-k+1
+central_core2[k,1] <-"        index = tree_structure(index)%childgauche"
+k<-k+1
+central_core2[k,1] <-"        x = tree_structure(index)%psum"
+k<-k+1
+central_core2[k,1] <-"   else"
+k<-k+1
+central_core2[k,1] <-"        index = tree_structure(index)%childdroit"
+k<-k+1
+central_core2[k,1] <-"        x = tree_structure(index)%psum"
+k<-k+1
+central_core2[k,1] <-"   end if"
+k<-k+1
+central_core2[k,1] <-"  end do"
+k<-k+1
+central_core2[k,1] <-" if  ( sum .lt. x) then"
+k<-k+1
+central_core2[k,1] <-"   mu = tree_structure(index)%label "
+k<-k+1
+central_core2[k,1] <-" else"
+k<-k+1
+central_core2[k,1] <-"   mu = tree_structure(index)%parents "
+k<-k+1
+central_core2[k,1] <-" end if "
+k<-k+1
+central_core2[k,1] <-"  if (d_mu(mu).eq.0.0) then"
+k<-k+1
+central_core2[k,1] <-"  do l = 1, stochio_number(mu)"
+k<-k+1
+central_core2[k,1] <-"   number_species(l,mu)%species =   number_species(l,mu)%species+   update(l,mu) "
+k<-k+1
+central_core2[k,1] <-" end do"
+k<-k+1
+central_core2[k,1] <-"  mu_no = vector_mu_tilde(mu)"
+
+for (i in 1:nrow(dependancy_graph_no_delay)){
+k<-k+1
+central_core2[k,1]<-paste(dependancy_graph_no_delay[i,1],sep="")
+}
+k<-k+1
+central_core2[k,1] <-"do j=x_min,M_react_channel "
+k<-k+1
+central_core2[k,1] <-"      p_sum(j) = a_nu(j)+p_sum(j-1)"
+k<-k+1
+central_core2[k,1] <-" end do"
+k<-k+1
+central_core2[k,1] <-" else"
+k<-k+1
+central_core2[k,1] <-"  !ongoing = ongoing+1"
+k<-k+1
+central_core2[k,1] <-"   if (consuming(mu)) then"
+k<-k+1
+central_core2[k,1] <-"     do l = 1, stochio_number_tilde(mu)"
+k<-k+1
+central_core2[k,1] <-"       number_species_tilde(l,mu)%species =   number_species_tilde(l,mu)%species+   update_tilde(l,mu) "
+k<-k+1
+central_core2[k,1] <-"     end do"
+k<-k+1
+central_core2[k,1] <-"     mu_yes = vector_mu_tilde(mu)"
+
+for (i in 1:nrow(dependancy_graph_delay)){
+k<-k+1
+central_core2[k,1]<-paste(dependancy_graph_delay[i,1],sep="")
+}
+k<-k+1
+central_core2[k,1] <-"   do j=x_min,M_react_channel "
+k<-k+1
+central_core2[k,1] <-"      p_sum(j) = a_nu(j)+p_sum(j-1)"
+k<-k+1
+central_core2[k,1] <-"   end do"
+k<-k+1
+central_core2[k,1] <-" end if"
+k<-k+1
+central_core2[k,1] <-" ongoing = ongoing+1"
+
+k<-k+1
+central_core2[k,1] <-"  if (ongoing.gt.1) then"
+k<-k+1
+central_core2[k,1] <-"  k = 1"
+k<-k+1
+central_core2[k,1] <-" check_t = react_t_delay(k)"
+k<-k+1
+central_core2[k,1] <-"   do while (t+ d_mu(mu) >= check_t ) "
+k<-k+1
+central_core2[k,1] <-"      k = k+1"
+k<-k+1
+central_core2[k,1] <-" check_t = react_t_delay(k)"
+k<-k+1
+central_core2[k,1] <-"   end do  "
+k<-k+1
+central_core2[k,1] <-"     react_t_delay(k+1:ongoing) =  react_t_delay(k:ongoing-1)"
+k<-k+1
+central_core2[k,1] <-"     mu_delayed(k+1:ongoing)   = mu_delayed(k:ongoing-1)"
+k<-k+1
+central_core2[k,1] <-"    react_t_delay(k) = t+ d_mu(mu)"
+k<-k+1
+central_core2[k,1] <-"    mu_delayed(k) = mu"
+k<-k+1
+central_core2[k,1] <-"  end if "
+k<-k+1
+central_core2[k,1] <-"  if (ongoing.eq.1) then"
+k<-k+1
+central_core2[k,1] <-"  react_t_delay(1) = t+ d_mu(mu)"
+k<-k+1
+central_core2[k,1] <-"    mu_delayed(1) = mu"
+k<-k+1
+central_core2[k,1] <-"  end if  "
+k<-k+1
+central_core2[k,1] <-"  end if  "
+k<-k+1
+central_core2[k,1]<-"  if (n >=10.0) then"
+k<-k+1
+central_core2[k,1]<-"   matrix_nbre_transition(etat_initial,mu) = matrix_nbre_transition(etat_initial,mu)+1"
+k<-k+1
+central_core2[k,1]<-"   matrix_A_transition(etat_initial,mu) = matrix_A_transition(etat_initial,mu)+a_nu(mu)"
+k<-k+1
+central_core2[k,1]<-"   matrix_Adt_transition(etat_initial,mu) = matrix_Adt_transition(etat_initial,mu)+a_nu(mu)*tau"
+k<-k+1
+central_core2[k,1]<-"end if "
+k<-k+1
+central_core2[k,1]<-"  etat_initial = mu"
+
+k<-k+1
+central_core2[k,1] <-"  if (mod(n,saving_frequency).eq.0) then"
+k<-k+1
+central_core2[k,1] <-"   i = i+1"
+k<-k+1   
+central_core2[k,1] <-"   matrix_result(i,1:N_species) =  matrix_result(i,1:N_species) +Y(1:N_species)"
+k<-k+1
+central_core2[k,1] <-"    matrix_result(i,N_species+1) = matrix_result(i,N_species+1) + t"
+k<-k+1
+central_core2[k,1] <-" end if"
+k<-k+1
+central_core2[k,1] <-"end do"
+k<-k+1
+central_core2[k,1] <-"end subroutine Gillespie_LDM"
+
+
+for (i in 1:nrow(central_core2)){
+if (as.character(central_core2[i,1])==as.character("NA?#")){central_core2[i,1]<-""}
+}
+
+setwd(fichier_output_f90_projet)
+write(central_core2, file="SSA_central_core_partial_summation_DG.f90")
+setwd(Name_file_initial_data)
+
+} # end of the of loop  about " (delay_yes != nbre_reactions  && delay_no != nbre_reactions)"
+########################################################################################################################
+#
+#                                      END OF THE PROGRAM -  TYPHON CODE SUCCESSFULLY GENERATED
+#
+########################################################################################################################
+
