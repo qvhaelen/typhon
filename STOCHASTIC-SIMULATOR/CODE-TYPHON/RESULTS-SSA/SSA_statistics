@@ -1,0 +1,17 @@
+ ***************  Date of the simulation completion*********************************
+   Year =                  2018
+   Month =                     8
+   Day of the month =                    15
+   Time difference with UTC in minutes =                   600
+   Hour of the day =                     7
+   The minutes of the hour =                    12
+   The seconds of the minute =                    26
+ ***************Statistics for SSA simulation **************************************
+ Value of the scaling factor used =    1.00000000000000     
+   A number of                  200  run(s) of              3000000 reactions has been  done.
+   Average physical duration of one run is t =                  1929 minutes
+   Total  number of fired reactions is             600000000
+   The Total Elapsed CPU time for the complete set of runs is                 47934 seconds
+   Approximately   798.913933083333      minutes
+    Average speed of the SSA is                 12516  reactions/s
+ ************************************************************************************
